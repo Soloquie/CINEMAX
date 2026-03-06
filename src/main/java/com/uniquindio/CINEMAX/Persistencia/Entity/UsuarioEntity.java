@@ -57,6 +57,12 @@ public class UsuarioEntity {
     @Column(name = "ultimo_login_en")
     private LocalDateTime ultimoLoginEn;
 
+    @Column(name = "intentos_fallidos", nullable = false)
+    private Integer intentosFallidos;
+
+    @Column(name = "bloqueado_hasta")
+    private LocalDateTime bloqueadoHasta;
+
     @CreationTimestamp
     @Column(name = "creado_en", nullable = false, updatable = false)
     private LocalDateTime creadoEn;

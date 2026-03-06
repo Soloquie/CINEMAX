@@ -11,4 +11,8 @@ public interface AuthService {
     MessageResponseDTO verifyEmail(VerifyEmailRequestDTO request);
 
     MessageResponseDTO resendVerification(ResendVerificationDTO request);
+
+    MessageResponseDTO forgotPassword(ForgotPasswordRequestDTO request);
+
+    MessageResponseDTO resetPassword(ResetPasswordRequestDTO request);
 }

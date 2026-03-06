@@ -121,4 +121,89 @@ public class EmailServiceImpl implements EmailService {
             throw new RuntimeException("Error enviando correo por SendGrid", e);
         }
     }
+
+    @Override
+    public void sendPasswordResetEmail(String toEmail, String toName, String resetLink) {
+
+        String text = """
+            Hola %s,
+
+            Recibimos una solicitud para restablecer tu contraseña en %s.
+            Abre este enlace para continuar:
+            %s
+
+            Si tú no solicitaste este cambio, ignora este correo.
+            """.formatted(toName, appName, resetLink);
+
+        String html = """
+            <!doctype html>
+            <html lang="es">
+            <head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/></head>
+            <body style="margin:0;background:#f6f7fb;font-family:Arial,Helvetica,sans-serif;">
+              <div style="max-width:600px;margin:0 auto;padding:24px;">
+                <div style="background:#111827;color:#fff;border-radius:14px;padding:20px 22px;">
+                  <div style="font-size:18px;font-weight:700;">%s</div>
+                  <div style="margin-top:6px;font-size:13px;opacity:.9;">Restablecimiento de contraseña</div>
+                </div>
+
+                <div style="background:#fff;border-radius:14px;padding:22px;margin-top:14px;box-shadow:0 6px 20px rgba(17,24,39,.08);">
+                  <p style="margin:0 0 10px 0;font-size:16px;color:#111827;">Hola <b>%s</b>,</p>
+                  <p style="margin:0 0 14px 0;font-size:14px;color:#374151;line-height:1.5;">
+                    Recibimos una solicitud para restablecer tu contraseña. Si fuiste tú, continúa con el botón:
+                  </p>
+
+                  <div style="margin:18px 0;">
+                    <a href="%s"
+                       style="display:inline-block;background:#2563EB;color:#fff;text-decoration:none;
+                              padding:12px 18px;border-radius:10px;font-weight:700;font-size:14px;">
+                      Restablecer contraseña
+                    </a>
+                  </div>
+
+                  <p style="margin:0;font-size:13px;color:#6B7280;line-height:1.5;">
+                    Si no solicitaste esto, ignora este correo.
+                    <br/><br/>
+                    Enlace alternativo:
+                    <br/>
+                    <a href="%s" style="color:#2563EB;word-break:break-all;">%s</a>
+                  </p>
+                </div>
+              </div>
+            </body>
+            </html>
+            """.formatted(appName, toName, resetLink, resetLink, resetLink);
+
+        sendViaSendGrid(toEmail, "Restablecer contraseña - " + appName, text, html);
+    }
+
+    private void sendViaSendGrid(String toEmail, String subject, String text, String html) {
+        try {
+            Email fromEmail = new Email(from);
+            Email to = new Email(toEmail);
+
+            Mail mail = new Mail();
+            mail.setFrom(fromEmail);
+            mail.setSubject(subject);
+
+            Personalization personalization = new Personalization();
+            personalization.addTo(to);
+            mail.addPersonalization(personalization);
+
+            mail.addContent(new Content("text/plain", text));
+            mail.addContent(new Content("text/html", html));
+
+            SendGrid sg = new SendGrid(apiKey);
+            Request request = new Request();
+            request.setMethod(Method.POST);
+            request.setEndpoint("mail/send");
+            request.setBody(mail.build());
+
+            Response response = sg.api(request);
+            if (response.getStatusCode() >= 400) {
+                throw new IllegalStateException("SendGrid error HTTP " + response.getStatusCode() + ": " + response.getBody());
+            }
+        } catch (IOException e) {
+            throw new RuntimeException("Error enviando correo por SendGrid", e);
+        }
+    }
 }

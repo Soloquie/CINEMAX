@@ -13,6 +13,8 @@ public class UsuarioMapper {
     public Usuario toDomain(UsuarioEntity e) {
         if (e == null) return null;
 
+        Integer intentos = e.getIntentosFallidos() == null ? 0 : e.getIntentosFallidos();
+
         Set<String> roles = (e.getRoles() == null) ? Set.of() :
                 e.getRoles().stream().map(r -> r.getNombre()).collect(Collectors.toSet());
 
@@ -27,7 +29,9 @@ public class UsuarioMapper {
                 Boolean.TRUE.equals(e.getEmailVerificado()),
                 e.getEstado(),
                 e.getUltimoLoginEn(),
-                roles
+                roles,
+                intentos,
+                e.getBloqueadoHasta()
         );
     }
 
@@ -45,6 +49,8 @@ public class UsuarioMapper {
                 .emailVerificado(d.emailVerificado())
                 .estado(d.estado())
                 .ultimoLoginEn(d.ultimoLoginEn())
+                .intentosFallidos(d.intentosFallidos() == null ? 0 : d.intentosFallidos())
+                .bloqueadoHasta(d.bloqueadoHasta())
                 // roles se adjuntan en DAO (managed entities)
                 .build();
     }

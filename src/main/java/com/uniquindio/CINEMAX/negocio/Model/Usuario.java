@@ -17,5 +17,7 @@ public record Usuario(
         boolean emailVerificado,
         EstadoUsuario estado,
         LocalDateTime ultimoLoginEn,
-        Set<String> roles // {"CLIENTE","ADMIN"}
+        Set<String> roles,
+        Integer intentosFallidos,
+        LocalDateTime bloqueadoHasta
 ) {}
