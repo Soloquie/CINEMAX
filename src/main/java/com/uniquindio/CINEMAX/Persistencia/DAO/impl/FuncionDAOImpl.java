@@ -2,9 +2,7 @@ package com.uniquindio.CINEMAX.Persistencia.DAO.impl;
 
 import com.uniquindio.CINEMAX.Persistencia.DAO.FuncionDAO;
 import com.uniquindio.CINEMAX.Persistencia.Entity.*;
-import com.uniquindio.CINEMAX.Persistencia.Repository.FuncionRepository;
-import com.uniquindio.CINEMAX.Persistencia.Repository.PeliculaRepository;
-import com.uniquindio.CINEMAX.Persistencia.Repository.SalaRepository;
+import com.uniquindio.CINEMAX.Persistencia.Repository.*;
 import com.uniquindio.CINEMAX.negocio.DTO.FuncionResponseDTO;
 import com.uniquindio.CINEMAX.negocio.DTO.FuncionUpsertDTO;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +21,8 @@ public class FuncionDAOImpl implements FuncionDAO {
     private final FuncionRepository funcionRepository;
     private final PeliculaRepository peliculaRepository;
     private final SalaRepository salaRepository;
+    private final AsientoRepository asientoRepository;
+    private final FuncionAsientoRepository funcionAsientoRepository;
 
     @Override
     public FuncionResponseDTO crear(FuncionUpsertDTO dto) {
@@ -35,7 +35,6 @@ public class FuncionDAOImpl implements FuncionDAO {
         LocalDateTime inicio = dto.inicio();
         LocalDateTime fin = dto.fin();
 
-        // Si no mandan fin, lo calculamos con duración de la película
         if (fin == null) {
             fin = inicio.plusMinutes(pelicula.getDuracionMin());
         }
@@ -56,9 +55,11 @@ public class FuncionDAOImpl implements FuncionDAO {
                 .build();
 
         try {
-            return toDTO(funcionRepository.save(entity));
+            FuncionEntity saved = funcionRepository.save(entity);
+            inicializarAsientosFuncion(saved);
+            return toDTO(saved);
         } catch (DataIntegrityViolationException ex) {
-            // uk_sala_inicio
+
             throw new IllegalArgumentException("Ya existe una función en esa sala a esa hora de inicio");
         }
     }
@@ -91,7 +92,17 @@ public class FuncionDAOImpl implements FuncionDAO {
         entity.setPrecioBase(dto.precioBase() != null ? dto.precioBase() : java.math.BigDecimal.ZERO);
 
         try {
-            return toDTO(funcionRepository.save(entity));
+            Long salaAnteriorId = entity.getSala().getId();
+            boolean cambioSala = !salaAnteriorId.equals(dto.salaId());
+
+            entity.setSala(sala);
+            FuncionEntity saved = funcionRepository.save(entity);
+
+            if (cambioSala) {
+                funcionAsientoRepository.deleteByFuncionId(saved.getId());
+                inicializarAsientosFuncion(saved);
+            }
+            return toDTO(saved);
         } catch (DataIntegrityViolationException ex) {
             throw new IllegalArgumentException("Ya existe una función en esa sala a esa hora de inicio");
         }
@@ -145,4 +156,31 @@ public class FuncionDAOImpl implements FuncionDAO {
                 f.getEstado().name()
         );
     }
+
+    private void inicializarAsientosFuncion(FuncionEntity funcion) {
+        Long salaId = funcion.getSala().getId();
+
+        if (funcionAsientoRepository.existsByFuncionId(funcion.getId())) {
+            return;
+        }
+
+        var asientos = asientoRepository.findBySalaIdAndActivoTrue(salaId);
+        if (asientos.isEmpty()) {
+            throw new IllegalArgumentException("La sala no tiene asientos registrados. No se puede crear la función.");
+        }
+
+        var registros = asientos.stream()
+                .map(a -> FuncionAsientoEntity.builder()
+                        .funcion(funcion)
+                        .asiento(a)
+                        .estado(EstadoFuncionAsiento.DISPONIBLE)
+                        .retenidoPor(null)
+                        .retencionExpira(null)
+                        .build()
+                )
+                .toList();
+
+        funcionAsientoRepository.saveAll(registros);
+    }
+
 }
