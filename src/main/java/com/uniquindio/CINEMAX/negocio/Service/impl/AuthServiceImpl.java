@@ -37,13 +37,13 @@ public class AuthServiceImpl implements AuthService {
     private final EmailService emailService;
 
     // --- Config ---
-    @Value("${app.verification.endpoint:http://localhost:8080/api/auth/verify-email}")
+    @Value("${app.verification.endpoint:http://localhost:4200/api/auth/verify-email}")
     private String verificationEndpoint;
 
     @Value("${app.verification.token-minutes:1440}")
     private long verificationTokenMinutes;
 
-    @Value("${app.reset-password.endpoint:http://localhost:8080/api/auth/reset-password}")
+    @Value("${app.reset-password.endpoint:http://localhost:4200/api/auth/reset-password}")
     private String resetPasswordEndpoint;
 
     @Value("${app.reset-password.token-minutes:30}")
