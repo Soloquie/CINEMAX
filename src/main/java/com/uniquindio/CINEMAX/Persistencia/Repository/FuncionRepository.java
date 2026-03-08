@@ -28,17 +28,18 @@ public interface FuncionRepository extends JpaRepository<FuncionEntity, Long> {
     List<PeliculaEntity> findPeliculasEnCartelera(@Param("now") LocalDateTime now);
 
     @Query("""
-        select f
-        from FuncionEntity f
-        join fetch f.pelicula p
-        join fetch f.sala s
-        join fetch s.cine c
-        where f.estado = :estado
-          and f.inicio >= :desde and f.inicio < :hasta
-          and (:cineId is null or c.id = :cineId)
-          and (:peliculaId is null or p.id = :peliculaId)
-        order by f.inicio asc
-    """)
+    select f
+    from FuncionEntity f
+    join fetch f.pelicula p
+    join fetch f.sala s
+    join fetch s.cine c
+    where f.estado = :estado
+      and (:desde is null or f.inicio >= :desde)
+      and (:hasta is null or f.inicio < :hasta)
+      and (:cineId is null or c.id = :cineId)
+      and (:peliculaId is null or p.id = :peliculaId)
+    order by f.inicio asc
+""")
     List<FuncionEntity> buscarFunciones(
             @Param("estado") EstadoFuncion estado,
             @Param("desde") LocalDateTime desde,

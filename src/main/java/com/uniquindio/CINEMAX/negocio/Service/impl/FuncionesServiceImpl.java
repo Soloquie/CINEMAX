@@ -22,18 +22,32 @@ public class FuncionesServiceImpl implements FuncionesService {
 
     @Override
     public List<FuncionPublicDTO> listar(LocalDate fecha, Long cineId, Long peliculaId) {
-        LocalDate day = (fecha == null) ? LocalDate.now() : fecha;
 
-        // Regla de negocio: si es HOY, no mostrar funciones que ya empezaron
         LocalDateTime now = LocalDateTime.now();
-        LocalDateTime desde = day.atStartOfDay();
-        if (day.equals(now.toLocalDate())) {
+
+        LocalDateTime desde;
+        LocalDateTime hasta;
+
+        if (fecha == null) {
+            // ✅ sin fecha: traer todas las futuras
             desde = now;
+            hasta = null;
+        } else {
+            // ✅ con fecha: traer solo ese día
+            LocalDate day = fecha;
+
+            desde = day.atStartOfDay();
+            if (day.equals(now.toLocalDate())) {
+                // Regla: hoy no mostrar las que ya empezaron
+                desde = now;
+            }
+
+            hasta = day.plusDays(1).atStartOfDay();
         }
-        LocalDateTime hasta = day.plusDays(1).atStartOfDay();
 
         if (cineId != null) {
-            var cine = cineRepository.findById(cineId).orElseThrow(() -> new IllegalArgumentException("Cine no existe."));
+            var cine = cineRepository.findById(cineId)
+                    .orElseThrow(() -> new IllegalArgumentException("Cine no existe."));
             if (!Boolean.TRUE.equals(cine.getActivo())) throw new IllegalArgumentException("Cine inactivo.");
         }
 
