@@ -6,7 +6,10 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
-
+/* Entidad JPA que representa un carrito de compras en el sistema CINEMAX. Cada carrito está asociado a un usuario
+ * y tiene un estado que indica si está activo, pendiente o completado. El carrito también tiene una fecha de expiración
+ * para gestionar su validez.
+  */
 @Getter @Setter
 @NoArgsConstructor @AllArgsConstructor
 @Builder

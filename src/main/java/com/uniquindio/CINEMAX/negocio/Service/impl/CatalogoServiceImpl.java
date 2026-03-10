@@ -13,7 +13,10 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
-
+/**
+ * Implementación de la interfaz CatalogoService para gestionar el catálogo de cines, salas, películas y funciones en el sistema CINEMAX.
+ * Esta clase utiliza varios repositorios para interactuar con la base de datos y realizar las operaciones necesarias.
+ */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -25,6 +28,12 @@ public class CatalogoServiceImpl implements CatalogoService {
     private final FuncionRepository funcionRepository;
     private final GeneroRepository generoRepository;
 
+    /**
+     * Lista los cines activos, con opción de filtrar por ciudad. El resultado se ordena por ciudad y nombre.
+     * @param ciudad filtro opcional para buscar cines por ciudad (mínimo 2 caracteres). Si es nulo o vacío,
+     * se listan todos los cines activos.
+     * @return Lista de cines que cumplen con el filtro, cada uno representado como un CinePublicDTO.
+     */
     @Override
     public java.util.List<CinePublicDTO> listarCines(String ciudad) {
         if (ciudad != null && !ciudad.isBlank() && ciudad.trim().length() < 2) {
@@ -39,7 +48,12 @@ public class CatalogoServiceImpl implements CatalogoService {
                 .map(c -> new CinePublicDTO(c.getId(), c.getNombre(), c.getCiudad(), c.getDireccion()))
                 .toList();
     }
-
+    /**
+     * Lista las salas activas de un cine específico, ordenadas por nombre. El cine debe existir y estar activo.
+     * @param cineId ID del cine para el cual se desean listar las salas. Debe ser un ID válido de un cine activo.
+     * @return Lista de salas que pertenecen al cine especificado, cada una representada como un SalaPublicDTO.
+     * @throws IllegalArgumentException si el cine no existe o está inactivo.
+     */
     @Override
     public java.util.List<SalaPublicDTO> listarSalasPorCine(Long cineId) {
         var cine = cineRepository.findById(cineId)
@@ -53,7 +67,17 @@ public class CatalogoServiceImpl implements CatalogoService {
                 .map(s -> new SalaPublicDTO(s.getId(), s.getNombre(), s.getTipo().name()))
                 .toList();
     }
-
+    /**
+     * Lista las películas activas con opciones de filtrado por título, género y rango de fechas de estreno. El resultado se pagina y ordena por título.
+     * @param q filtro opcional para buscar películas por título (mínimo 2 caracteres). Si es nulo o vacío, no se filtra por título.
+     * @param generoId filtro opcional para buscar películas por género. Si es nulo, no se filtra por género.
+     * @param desde filtro opcional para buscar películas estrenadas a partir de una fecha (formato "yyyy-MM-dd"). Si es nulo o vacío, no se filtra por fecha de estreno mínima.
+     * @param hasta filtro opcional para buscar películas estrenadas hasta una fecha (formato "yyyy-MM-dd"). Si es nulo o vacío, no se filtra por fecha de estreno máxima.
+     * @param page número de página para la paginación (0-based). Debe ser un número entero no negativo.
+     * @param size tamaño de página para la paginación. Debe ser un número entero entre 1 y 50.
+     * @return Página de películas que cumplen con los filtros especificados, cada una representada como un PeliculaCardDTO.
+     * @throws IllegalArgumentException si los parámetros de paginación son inválidos o si el filtro de título es demasiado corto.
+     */
     @Override
     public Page<PeliculaCardDTO> listarPeliculas(String q, Long generoId, String desde, String hasta, int page, int size) {
         // Validaciones de calidad: filtros exactos y límites razonables
@@ -76,7 +100,8 @@ public class CatalogoServiceImpl implements CatalogoService {
                         generoId,
                         d1,
                         d2,
-                        true, // soloActivas=true para cliente
+                        // Solo películas activas
+                        true,
                         pageable
                 )
                 .map(p -> new PeliculaCardDTO(
@@ -88,7 +113,12 @@ public class CatalogoServiceImpl implements CatalogoService {
                         p.getFechaEstreno()
                 ));
     }
-
+    /**
+     * Obtiene el detalle completo de una película específica por su ID. La película debe existir y estar activa.
+     * @param peliculaId ID de la película para la cual se desea obtener el detalle. Debe ser un ID válido de una película activa.
+     * @return Detalle completo de la película, representado como un PeliculaDetailDTO, incluyendo sus géneros asociados.
+     * @throws IllegalArgumentException si la película no existe o está inactiva.
+     */
     @Override
     public PeliculaDetailDTO detallePelicula(Long peliculaId) {
         var p = peliculaRepository.findById(peliculaId)
@@ -110,7 +140,12 @@ public class CatalogoServiceImpl implements CatalogoService {
                 generos
         );
     }
-
+    /**
+     * Lista las películas que se estrenarán en los próximos días, con un límite máximo de 365 días. El resultado se ordena por fecha de estreno.
+     * @param dias número de días a partir de hoy para buscar estrenos próximos. Debe ser un número entero entre 1 y 365.
+     * @return Lista de películas que se estrenarán en los próximos días, cada una representada como un PeliculaCardDTO.
+     * @throws IllegalArgumentException si el número de días es inválido.
+     */
     @Override
     public java.util.List<PeliculaCardDTO> proximas(int dias) {
         if (dias < 1 || dias > 365) throw new IllegalArgumentException("dias debe estar entre 1 y 365.");
@@ -123,7 +158,10 @@ public class CatalogoServiceImpl implements CatalogoService {
                         p.getClasificacion(), p.getFechaEstreno()))
                 .toList();
     }
-
+    /**
+     * Lista las películas que actualmente están en cartelera, es decir, aquellas que tienen funciones programadas a partir de hoy. El resultado se ordena por título.
+     * @return Lista de películas que están en cartelera, cada una representada como un PeliculaCardDTO.
+     */
     @Override
     public List<PeliculaCardDTO> enCartelera() {
         LocalDateTime now = LocalDateTime.now();
@@ -140,7 +178,10 @@ public class CatalogoServiceImpl implements CatalogoService {
                 ))
                 .toList();
     }
-
+    /**
+     * Lista los géneros disponibles en el sistema, ordenados por nombre. El resultado se representa como una lista de GeneroDTO.
+     * @return Lista de géneros disponibles, cada uno representado como un GeneroDTO con su ID y nombre.
+     */
     @Override
     public List<GeneroDTO> listarGeneros() {
         return generoRepository.findAllByOrderByNombreAsc()

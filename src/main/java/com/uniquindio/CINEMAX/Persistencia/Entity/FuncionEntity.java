@@ -6,7 +6,10 @@ import org.hibernate.annotations.CreationTimestamp;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-
+/* Entidad JPA que representa una función de cine en el sistema CINEMAX. Cada función está asociada a una película y una sala específica,
+ * y tiene información sobre el horario de inicio y fin, idioma, subtítulos, precio base y estado de la función. La entidad también registra
+ * la fecha de creación para fines de auditoría. Se establece una restricción única para evitar funciones superpuestas en la misma sala.
+  */
 @Getter @Setter
 @NoArgsConstructor @AllArgsConstructor
 @Builder

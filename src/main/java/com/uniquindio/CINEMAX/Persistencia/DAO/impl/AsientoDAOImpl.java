@@ -16,7 +16,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 import java.util.stream.Collectors;
-
+/* Implementación de la interfaz AsientoDAO para gestionar las operaciones relacionadas
+ con los asientos en el sistema CINEMAX. */
 @Repository
 @RequiredArgsConstructor
 @Transactional
@@ -25,6 +26,13 @@ public class AsientoDAOImpl implements AsientoDAO {
     private final AsientoRepository asientoRepository;
     private final SalaRepository salaRepository;
 
+    /**
+     * Genera los asientos para una sala específica según la configuración proporcionada en el DTO.
+     * @param salaId ID de la sala para la cual se generarán los asientos.
+     * @param dto DTO que contiene la configuración para generar los asientos, incluyendo filas, número de asientos por fila,
+     * @return DTO con el resultado de la operación, incluyendo el número de asientos creados, actualizados,
+     * desactivados y el total de asientos activos en la sala.
+     */
     @Override
     public AsientosGenerarResponseDTO generar(Long salaId, AsientosGenerarDTO dto) {
 
@@ -35,7 +43,7 @@ public class AsientoDAOImpl implements AsientoDAO {
             throw new IllegalArgumentException("La sala está inactiva");
         }
 
-        // Normalizar filas
+        // Normalizar filas: eliminar espacios, convertir a mayúsculas, eliminar duplicados manteniendo orden
         Set<String> filas = dto.getFilas().stream()
                 .map(f -> f.trim().toUpperCase())
                 .filter(f -> !f.isBlank())
@@ -53,8 +61,7 @@ public class AsientoDAOImpl implements AsientoDAO {
                 discapacidadKeys.add(key(p.fila().trim().toUpperCase(), p.numero()));
             }
         }
-
-        // Traer existentes
+        // Obtener los asientos existentes de la sala y mapearlos por fila-número para fácil acceso
         List<AsientoEntity> existentes = asientoRepository.findBySalaId(salaId);
         Map<String, AsientoEntity> map = new HashMap<>();
         for (AsientoEntity a : existentes) {
@@ -99,8 +106,7 @@ public class AsientoDAOImpl implements AsientoDAO {
                 }
             }
         }
-
-        // Desactivar los que sobran (si está habilitado)
+        // Desactivar los asientos que ya no se desean, si se indicó en el DTO
         if (dto.isDesactivarFuera()) {
             for (AsientoEntity a : existentes) {
                 String k = key(a.getFila().toUpperCase(), a.getNumero());
@@ -121,6 +127,11 @@ public class AsientoDAOImpl implements AsientoDAO {
         return new AsientosGenerarResponseDTO(salaId, creados, actualizados, desactivados, totalActivos);
     }
 
+    /**
+     * Lista los asientos de una sala específica, devolviendo un DTO con la información relevante de cada asiento.
+     * @param salaId ID de la sala para la cual se listarán los asientos.
+     * @return Lista de DTOs con la información de los asientos de la sala, incluyendo ID, fila, número, tipo y estado activo.
+     */
     @Override
     @Transactional(readOnly = true)
     public List<AsientoResponseDTO> listarPorSala(Long salaId) {
@@ -128,7 +139,8 @@ public class AsientoDAOImpl implements AsientoDAO {
                 .map(a -> new AsientoResponseDTO(a.getId(), a.getFila(), a.getNumero(), a.getTipo(), a.getActivo()))
                 .toList();
     }
-
+    // Método auxiliar para generar una clave única basada en la fila y el número del asiento,
+    // utilizado para mapear y comparar asientos.
     private String key(String fila, int numero) {
         return fila + "-" + numero;
     }

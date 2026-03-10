@@ -9,13 +9,16 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-
+/**
+ * Implementación de la interfaz AsientoService para gestionar los asientos en el sistema CINEMAX.
+ * Esta clase utiliza un DAO para interactuar con la base de datos y realizar las operaciones necesarias.
+ */
 @Service
 @RequiredArgsConstructor
 public class AsientoServiceImpl implements AsientoService {
 
     private final AsientoDAO asientoDAO;
-
+    /* Implementación del método para generar asientos en una sala específica. */
     @Override public AsientosGenerarResponseDTO generar(Long salaId, AsientosGenerarDTO dto) { return asientoDAO.generar(salaId, dto); }
     @Override public List<AsientoResponseDTO> listarPorSala(Long salaId) { return asientoDAO.listarPorSala(salaId); }
 }

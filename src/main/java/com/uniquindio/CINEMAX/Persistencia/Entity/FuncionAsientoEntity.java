@@ -5,7 +5,11 @@ import lombok.*;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
-
+/* Entidad JPA que representa la relación entre una función y un asiento en el sistema CINEMAX.
+ * Esta entidad gestiona el estado de cada asiento para una función específica, incluyendo si el asiento está disponible,
+ *  reservado o vendido.
+ * También permite gestionar retenciones temporales de asientos por parte de usuarios durante el proceso de compra.
+  */
 @Getter @Setter
 @NoArgsConstructor @AllArgsConstructor
 @Builder

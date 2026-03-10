@@ -4,7 +4,7 @@ import com.uniquindio.CINEMAX.negocio.DTO.CineResponseDTO;
 import com.uniquindio.CINEMAX.negocio.DTO.CineUpsertDTO;
 
 import java.util.List;
-
+/* Interfaz DAO para gestionar las operaciones relacionadas con los cines en el sistema CINEMAX. */
 public interface CineDAO {
     CineResponseDTO crear(CineUpsertDTO dto);
     CineResponseDTO actualizar(Long id, CineUpsertDTO dto);

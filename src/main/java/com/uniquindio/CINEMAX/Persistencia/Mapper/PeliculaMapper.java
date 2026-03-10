@@ -6,7 +6,10 @@ import com.uniquindio.CINEMAX.negocio.Model.Pelicula;
 import org.springframework.stereotype.Component;
 
 import java.util.stream.Collectors;
-
+/* Clase de mapeo que se encarga de convertir entre las entidades de película, los modelos de dominio y los DTOs en el sistema CINEMAX.
+ * Proporciona métodos para transformar un PeliculaEntity a un Pelicula (modelo de dominio) y un Pelicula a un PeliculaResponseDTO
+ * (objeto de transferencia de datos).
+  */
 @Component
 public class PeliculaMapper {
 

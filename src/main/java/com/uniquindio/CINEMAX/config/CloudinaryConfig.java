@@ -1,4 +1,13 @@
 package com.uniquindio.CINEMAX.config;
+/**
+ * Configuración de Cloudinary para la aplicación CINEMAX.
+ * Esta clase define un bean de Cloudinary que se configura utilizando las
+ * propiedades definidas en el archivo de configuración de la aplicación (application.properties o application.yml).
+ * Las propiedades necesarias son:
+ * - cloudinary.cloud-name: El nombre de la nube de Cloudinary.
+ * - cloudinary.api-key: La clave de API de Cloudinary.
+ * - cloudinary.api-secret: El secreto de API de Cloudinary.
+ */
 
 import com.cloudinary.Cloudinary;
 import org.springframework.beans.factory.annotation.Value;

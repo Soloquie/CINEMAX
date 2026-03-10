@@ -9,7 +9,12 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
-
+/* Interfaz de repositorio que extiende JpaRepository para gestionar las operaciones de persistencia relacionadas
+* con las funciones en el sistema CINEMAX.Proporciona métodos personalizados para buscar funciones por película,
+*  estado y fecha de inicio, obtener películas en cartelera basadas en funciones programadas,  y realizar búsquedas
+* avanzadas de funciones utilizando múltiples criterios como estado, rango de fechas, cine y película.
+* Esto facilita la gestión de las funciones disponibles en el sistema, permitiendo realizar consultas específicas según las necesidades del negocio.
+  */
 public interface FuncionRepository extends JpaRepository<FuncionEntity, Long> {
 
     List<FuncionEntity> findByPeliculaIdAndEstadoAndInicioAfterOrderByInicioAsc(

@@ -7,7 +7,10 @@ import org.hibernate.annotations.CreationTimestamp;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
-
+/* Entidad JPA que representa un rol de usuario en el sistema CINEMAX. Cada rol tiene un nombre único,
+ * una descripción opcional y una fecha de creación.  La entidad también establece una relación de muchos a muchos
+ *  con la entidad UsuarioEntity para asignar roles a los usuarios del sistema.
+  */
 @Getter
 @Setter
 @NoArgsConstructor

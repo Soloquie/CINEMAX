@@ -9,7 +9,11 @@ import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.*;
-
+/* Servicio para gestionar la generación y validación de tokens JWT.
+ * Proporciona métodos para generar un token JWT con la información del usuario (ID, correo electrónico y roles),
+ * validar un token JWT y extraer la información del usuario desde el token.
+ * Utiliza una clave secreta configurada en las propiedades de la aplicación para firmar los tokens y garantizar su integridad.
+   */
 @Service
 public class JwtService {
 
@@ -20,7 +24,7 @@ public class JwtService {
             @Value("${app.jwt.secret}") String secret,
             @Value("${app.jwt.expires-in-seconds:3600}") long expiresInSeconds
     ) {
-        // HS256 necesita mínimo 32 bytes (~32 chars) para estar seguro
+        // Validar que la clave secreta tenga al menos 32 caracteres para garantizar la seguridad del token
         if (secret == null || secret.trim().length() < 32) {
             throw new IllegalArgumentException("app.jwt.secret debe tener al menos 32 caracteres");
         }
@@ -81,7 +85,7 @@ public class JwtService {
         }
         return Set.of();
     }
-
+    // Método privado para parsear el token JWT y obtener todas las reclamaciones (claims) contenidas en él.
     private Claims parseAllClaims(String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(secretKey)

@@ -8,10 +8,14 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
-
+/**
+ * Implementación de la interfaz EmailService para gestionar el envío de correos electrónicos en el sistema CINEMAX.
+ * Esta clase utiliza la biblioteca SendGrid para interactuar con el servicio de envío de correos y
+ * realizar las operaciones necesarias.
+ */
 @Service
 public class EmailServiceImpl implements EmailService {
-
+    // --- Configuraciones desde application.properties ---
     @Value("${sendgrid.api.key}")
     private String apiKey;
 
@@ -24,6 +28,14 @@ public class EmailServiceImpl implements EmailService {
     @Value("${app.verification.token-minutes:1440}")
     private long tokenMinutes;
 
+    /**
+     * Implementación del método para enviar un correo de verificación. Este método recibe el correo electrónico del destinatario,
+     * su nombre y el enlace de verificación, y utiliza SendGrid para enviar un correo
+     * @param toEmail Correo electrónico del destinatario.
+     * @param toName Nombre del destinatario, utilizado para personalizar el saludo en el correo.
+     * @param verificationLink Enlace que el destinatario debe abrir para verificar su cuenta.
+     * Este enlace generalmente contiene un token de verificación que expira después de un tiempo determinado.
+     */
     @Override
     public void sendVerificationEmail(String toEmail, String toName, String verificationLink) {
 
@@ -38,8 +50,7 @@ public class EmailServiceImpl implements EmailService {
 
                 Si tú no creaste esta cuenta, ignora este correo.
                 """.formatted(toName, appName, verificationLink, tokenMinutes);
-
-        // --- HTML “más profesional” ---
+        // --- HTML enriquecido ---
         String html = """
                 <!doctype html>
                 <html lang="es">
@@ -87,7 +98,7 @@ public class EmailServiceImpl implements EmailService {
                 </body>
                 </html>
                 """.formatted(appName, toName, appName, verificationLink, tokenMinutes, verificationLink, verificationLink);
-
+        // --- Enviar correo usando SendGrid ---
         try {
             Email fromEmail = new Email(from);
             Email to = new Email(toEmail);
@@ -121,7 +132,15 @@ public class EmailServiceImpl implements EmailService {
             throw new RuntimeException("Error enviando correo por SendGrid", e);
         }
     }
-
+    /**
+     * Implementación del método para enviar un correo de restablecimiento de contraseña.
+     * Este método recibe el correo electrónico del destinatario,
+     * su nombre y el enlace de restablecimiento, y utiliza SendGrid para enviar un correo
+     * @param toEmail Correo electrónico del destinatario.
+     * @param toName Nombre del destinatario, utilizado para personalizar el saludo en el correo.
+     * @param resetLink Enlace que el destinatario debe abrir para restablecer su contraseña.
+     * Este enlace generalmente contiene un token de restablecimiento que expira después de un tiempo determinado.
+     */
     @Override
     public void sendPasswordResetEmail(String toEmail, String toName, String resetLink) {
 
@@ -134,7 +153,7 @@ public class EmailServiceImpl implements EmailService {
 
             Si tú no solicitaste este cambio, ignora este correo.
             """.formatted(toName, appName, resetLink);
-
+        // --- HTML enriquecido ---
         String html = """
             <!doctype html>
             <html lang="es">
@@ -176,6 +195,15 @@ public class EmailServiceImpl implements EmailService {
         sendViaSendGrid(toEmail, "Restablecer contraseña - " + appName, text, html);
     }
 
+    /**
+     * Método privado para enviar un correo utilizando SendGrid.
+     * Este método se encarga de construir el correo con el formato adecuado y manejar la respuesta del servicio de envío.
+     * @param toEmail Correo electrónico del destinatario.
+     * @param subject Asunto del correo.
+     * @param text Contenido del correo en formato texto plano, utilizado como fallback para clientes de correo que no soportan HTML.
+     * @param html Contenido del correo en formato HTML, utilizado para clientes de correo que soportan HTML y
+     * permite un diseño más enriquecido.
+     */
     private void sendViaSendGrid(String toEmail, String subject, String text, String html) {
         try {
             Email fromEmail = new Email(from);
@@ -184,7 +212,8 @@ public class EmailServiceImpl implements EmailService {
             Mail mail = new Mail();
             mail.setFrom(fromEmail);
             mail.setSubject(subject);
-
+            // Es importante agregar ambos contenidos (html + text) para
+            // asegurar la compatibilidad con todos los clientes de correo
             Personalization personalization = new Personalization();
             personalization.addTo(to);
             mail.addPersonalization(personalization);

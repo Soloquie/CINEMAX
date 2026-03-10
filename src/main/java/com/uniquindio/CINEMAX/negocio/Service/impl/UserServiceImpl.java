@@ -9,7 +9,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Set;
 import java.util.stream.Collectors;
-
+/**
+ * Implementación de la interfaz UserService para gestionar las operaciones relacionadas con los usuarios en el sistema CINEMAX.
+ * Esta clase utiliza un repositorio para interactuar con la base de datos y realizar las operaciones necesarias.
+ */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -17,6 +20,13 @@ public class UserServiceImpl implements UserService {
 
     private final UsuarioRepository usuarioRepository;
 
+    /**
+     * Implementación del método para obtener la información del usuario actual (me) utilizando su correo electrónico.
+     * @param email Correo electrónico del usuario para el cual se desea obtener la información.
+     * @return DTO que representa la información del usuario actual, incluyendo su ID, nombre, apellido,
+     * fecha de nacimiento, correo electrónico, teléfono, estado de verificación de correo electrónico,
+     * estado de la cuenta y roles asociados.
+     */
     @Override
     public UserMeDTO me(String email) {
         var u = usuarioRepository.findByEmail(email)

@@ -5,7 +5,9 @@ import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
-
+/* Entidad JPA que representa un cine en el sistema CINEMAX. Cada cine tiene un nombre, ciudad, dirección y un estado de actividad.
+ * La entidad también registra la fecha de creación del cine para fines de auditoría.
+  */
 @Getter @Setter
 @NoArgsConstructor @AllArgsConstructor
 @Builder

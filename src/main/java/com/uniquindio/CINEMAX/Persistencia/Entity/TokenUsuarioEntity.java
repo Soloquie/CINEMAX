@@ -5,7 +5,11 @@ import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
-
+/* Entidad JPA que representa un token de usuario en el sistema CINEMAX. Cada token está asociado a un usuario específico
+ * y tiene un valor único, un tipo (por ejemplo, CONFIRMACION_REGISTRO, RECUPERACION_CONTRASENA) y fechas de creación,
+ *  expiración y uso. La entidad también establece una relación de muchos a uno con la entidad UsuarioEntity para
+ *  vincular cada token a su respectivo usuario.
+  */
 @Getter
 @Setter
 @NoArgsConstructor
