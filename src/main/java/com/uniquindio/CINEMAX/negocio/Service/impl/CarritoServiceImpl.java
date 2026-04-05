@@ -122,7 +122,6 @@ public class CarritoServiceImpl implements CarritoService {
                         .build());
 
         if (carrito.getId() == null) {
-            // no existe aún en BD, lo devolvemos vacío
             return new CarritoResponseDTO(null, carrito.getEstado().name(), null, List.of());
         }
 

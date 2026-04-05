@@ -3,7 +3,9 @@ package com.uniquindio.CINEMAX.Persistencia.Entity;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -24,8 +26,8 @@ public class PeliculaEntity {
     @Column(name="titulo", nullable=false, length=160)
     private String titulo;
 
-    @Lob
-    @Column(name="sinopsis")
+    @JdbcTypeCode(SqlTypes.LONGVARCHAR)
+    @Column(name="sinopsis", columnDefinition = "TEXT")
     private String sinopsis;
 
     @Column(name="duracion_min", nullable=false)
