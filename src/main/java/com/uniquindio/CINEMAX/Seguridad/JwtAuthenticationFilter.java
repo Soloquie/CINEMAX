@@ -16,7 +16,13 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.List;
 import java.util.Set;
-
+/* Filtro de autenticación JWT que intercepta cada solicitud entrante para validar el token JWT presente en el
+ * encabezado Authorization.
+ * Si el token es válido, extrae la información del usuario (correo electrónico y roles) y establece la autenticación
+ * en el contexto de seguridad de Spring Security.
+ * Esto permite que los endpoints protegidos reconozcan al usuario autenticado y a sus roles para autorizar
+ * el acceso según las reglas de seguridad definidas.
+   */
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
@@ -33,7 +39,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             FilterChain filterChain
     ) throws ServletException, IOException {
 
-        // Si ya hay auth seteada, seguimos
+        // Si ya hay una autenticación establecida, no hacemos nada (evita revalidar el token)
         if (SecurityContextHolder.getContext().getAuthentication() != null) {
             filterChain.doFilter(request, response);
             return;
@@ -41,7 +47,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String authHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
 
-        // No viene Bearer token → dejamos pasar (Security decidirá si requiere auth)
+        // El token JWT se espera en el formato
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
@@ -53,7 +59,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-        // Validar token
+        // Validamos el token JWT
         if (!jwtService.isTokenValid(token)) {
             // No seteamos auth; Security devolverá 401 en endpoints protegidos
             filterChain.doFilter(request, response);
@@ -63,7 +69,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String email = jwtService.extractEmail(token);
         Set<String> roles = jwtService.extractRoles(token);
 
-        // Convertir roles "ADMIN" -> "ROLE_ADMIN" (estándar Spring Security)
+        // Convertimos los roles a GrantedAuthority, asegurándonos de que tengan el prefijo "ROLE_"
         List<GrantedAuthority> authorities = roles.stream()
                 .map(r -> r.startsWith("ROLE_") ? r : "ROLE_" + r)
                 .map(SimpleGrantedAuthority::new)

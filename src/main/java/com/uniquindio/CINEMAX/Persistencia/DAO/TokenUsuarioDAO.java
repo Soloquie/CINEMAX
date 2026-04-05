@@ -5,7 +5,7 @@ import com.uniquindio.CINEMAX.negocio.Model.TokenUsuario;
 
 import java.util.List;
 import java.util.Optional;
-
+/* Interfaz DAO para gestionar las operaciones relacionadas con los tokens de usuario en el sistema CINEMAX. */
 public interface TokenUsuarioDAO {
     TokenUsuario guardar(TokenUsuario tokenUsuario);
     Optional<TokenUsuario> buscarPorToken(String token);

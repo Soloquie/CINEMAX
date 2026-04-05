@@ -6,7 +6,11 @@ import org.springframework.stereotype.Component;
 
 import java.util.Set;
 import java.util.stream.Collectors;
-
+/* Clase de mapeo que se encarga de convertir entre las entidades de usuario y los modelos de dominio en el sistema CINEMAX.
+ * Proporciona métodos para transformar un UsuarioEntity a un Usuario (modelo de dominio) y un Usuario a un UsuarioEntity
+ * (entidad de persistencia). Es importante destacar que el método toEntity no establece la relación ManyToMany con los roles,
+ * ya que esto se maneja en el DAO utilizando roles "managed".
+ *  */
 @Component
 public class UsuarioMapper {
 

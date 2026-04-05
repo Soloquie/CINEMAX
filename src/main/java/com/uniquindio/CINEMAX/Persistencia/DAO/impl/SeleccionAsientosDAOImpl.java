@@ -15,7 +15,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
-
+/* Implementación de la interfaz SeleccionAsientosDAO para gestionar las operaciones relacionadas con la selección
+ de asientos en el sistema CINEMAX. */
 @Repository
 @RequiredArgsConstructor
 @Transactional
@@ -24,10 +25,18 @@ public class SeleccionAsientosDAOImpl implements SeleccionAsientosDAO {
     private final FuncionRepository funcionRepository;
     private final FuncionAsientoRepository funcionAsientoRepository;
     private final UsuarioRepository usuarioRepository;
-
+    // Tiempo en minutos que un asiento queda retenido (hold) antes de volver a estar disponible automáticamente
     @Value("${app.seat-hold.minutes:10}")
     private int holdMinutes;
-
+    /** Lista los asientos disponibles para una función específica en el sistema CINEMAX.
+     * Verifica que la función exista antes de listar los asientos.
+     * @param funcionId ID de la función para la cual se desean listar los asientos.
+     * @param emailUsuario Correo electrónico del usuario que solicita la lista de asientos, utilizado para identificar
+     * si algún asiento está retenido por ese usuario.
+     * @return Una lista de DTOs que representan los asientos de la función, incluyendo su estado
+     * y si están retenidos por el usuario solicitante.
+     * @throws IllegalArgumentException Si la función no existe o si el usuario no existe.
+     */
     @Override
     @Transactional(readOnly = true)
     public List<FuncionAsientoResponseDTO> listarAsientos(Long funcionId, String emailUsuario) {
@@ -57,6 +66,14 @@ public class SeleccionAsientosDAOImpl implements SeleccionAsientosDAO {
         )).toList();
     }
 
+    /** Permite a un usuario retener (hold) uno o más asientos para una función específica en el sistema CINEMAX.
+     * Verifica que la función exista, que el usuario exista y que los asientos solicitados sean válidos
+     * @param funcionId ID de la función para la cual se desean retener los asientos.
+     * @param emailUsuario  Correo electrónico del usuario que desea retener los asientos, utilizado para identificar al usuario
+     * @param request DTO que contiene la lista de IDs de los asientos que se desean retener.
+     * @return  DTO con la información de los asientos retenidos, incluyendo el ID de la función, los IDs de los
+     * asientos y la fecha y hora de expiración del hold.
+     */
     @Override
     public HoldAsientosResponseDTO hold(Long funcionId, String emailUsuario, HoldAsientosRequestDTO request) {
 
@@ -69,21 +86,19 @@ public class SeleccionAsientosDAOImpl implements SeleccionAsientosDAO {
 
         LocalDateTime now = LocalDateTime.now();
 
-        // 1) Liberar expirados (para que asientos vencidos vuelvan a DISPONIBLE)
+        // 1) Liberar asientos que hayan expirado (si alguien más los tenía en hold pero ya pasó el tiempo)
         funcionAsientoRepository.liberarExpirados(funcionId, now);
 
-        // 2) Traer y bloquear filas a actualizar
+        // 2) Bloquear los asientos solicitados para validarlos (SELECT FOR UPDATE)
         List<Long> ids = request.funcionAsientoIds();
         List<FuncionAsientoEntity> filas = funcionAsientoRepository.findForUpdate(funcionId, ids);
 
         if (filas.size() != ids.size()) {
             throw new IllegalArgumentException("Algunos asientos no pertenecen a esta función o no existen");
         }
-
-        // 3) Validar disponibilidad (ATÓMICO: si uno falla, no bloqueamos ninguno)
+        // 3) Validar que todos los asientos estén disponibles o ya estén en hold por mí (en cuyo caso renovamos el hold)
         for (FuncionAsientoEntity fa : filas) {
-
-            // Si quedó BLOQUEADO pero ya expiró, lo consideramos DISPONIBLE (por si no liberó aún)
+            // Si el asiento está bloqueado pero el hold expiró, lo liberamos automáticamente para que pueda ser reservado por otros
             if (fa.getEstado() == EstadoFuncionAsiento.BLOQUEADO && fa.getRetencionExpira() != null
                     && fa.getRetencionExpira().isBefore(now)) {
                 fa.setEstado(EstadoFuncionAsiento.DISPONIBLE);
@@ -102,8 +117,8 @@ public class SeleccionAsientosDAOImpl implements SeleccionAsientosDAO {
                 throw new IllegalStateException("Al menos un asiento no está disponible para reservar (hold).");
             }
         }
-
-        // 4) Aplicar hold (o renovar si era mío)
+        // 4) Si llegamos aquí, todos los asientos son válidos para poner en hold. Actualizamos su estado, el usuario
+        // que los retiene y la fecha de expiración del hold.
         LocalDateTime expiraEn = now.plusMinutes(holdMinutes);
         for (FuncionAsientoEntity fa : filas) {
             fa.setEstado(EstadoFuncionAsiento.BLOQUEADO);
@@ -115,7 +130,15 @@ public class SeleccionAsientosDAOImpl implements SeleccionAsientosDAO {
 
         return new HoldAsientosResponseDTO(funcionId, ids, expiraEn);
     }
-
+    /* Permite a un usuario liberar uno o más asientos que tenía en hold para una función específica en el sistema CINEMAX.
+ Verifica que la función exista, que el usuario exista y que los asientos solicitados sean válidos y estén actualmente en hold por ese usuario.
+ * @param funcionId ID de la función para la cual se desean liberar los asientos.
+ * @param emailUsuario Correo electrónico del usuario que desea liberar los asientos, utilizado para identificar al usuario
+ * @param request DTO que contiene la lista de IDs de los asientos que se desean liberar.
+ * @return DTO con un mensaje indicando cuántos asientos fueron liberados exitosamente.
+ * @throws IllegalArgumentException Si la función no existe, si el usuario no existe, si algunos asientos no pertenecen
+  a la función o si algunos asientos no están actualmente en hold por ese usuario.
+ */
     @Override
     public MessageResponseDTO release(Long funcionId, String emailUsuario, ReleaseAsientosRequestDTO request) {
 

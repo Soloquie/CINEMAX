@@ -9,7 +9,12 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
-
+/* Entidad JPA que representa un usuario en el sistema CINEMAX. Cada usuario tiene un nombre, apellido, fecha de nacimiento,
+ * email único, teléfono, contraseña (almacenada como hash), estado de verificación de email, estado de actividad,
+ * fecha del último login, número de intentos fallidos y fecha hasta la cual está bloqueado (en caso de bloqueos por seguridad).
+ * La entidad también incluye fechas de creación y actualización para fines de auditoría. Además, se establece una relación
+ * de muchos a muchos con la entidad RolEntity para asignar roles a los usuarios del sistema.
+   */
 @Getter
 @Setter
 @NoArgsConstructor

@@ -6,7 +6,10 @@ import org.hibernate.annotations.CreationTimestamp;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-
+/* Entidad JPA que representa un ítem dentro de un carrito de compras en el sistema CINEMAX. Cada ítem puede ser
+ * de tipo función (asiento reservado para una función específica) o producto (artículo del concesionario). El ítem
+ * está asociado a un carrito específico y contiene información sobre la cantidad, el precio unitario y la fecha de creación.
+  */
 @Getter @Setter
 @NoArgsConstructor @AllArgsConstructor
 @Builder

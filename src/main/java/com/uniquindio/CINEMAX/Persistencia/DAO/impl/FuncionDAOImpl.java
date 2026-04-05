@@ -12,18 +12,29 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+/* Implementación de la interfaz FuncionDAO para gestionar las operaciones relacionadas
 
+ */
 @Repository
 @RequiredArgsConstructor
 @Transactional
 public class FuncionDAOImpl implements FuncionDAO {
-
+    // Repositorios necesarios para realizar las operaciones relacionadas con las funciones, películas,
+    // salas y asientos en el sistema CINEMAX.
     private final FuncionRepository funcionRepository;
     private final PeliculaRepository peliculaRepository;
     private final SalaRepository salaRepository;
     private final AsientoRepository asientoRepository;
     private final FuncionAsientoRepository funcionAsientoRepository;
 
+    /**
+     * Crea una nueva función en el sistema CINEMAX. Verifica que la película y la sala existan, y que la hora de fin
+     * sea posterior a la hora de inicio.
+     * @param dto DTO que contiene la información necesaria para crear una nueva función, incluyendo ID de película,
+     * ID de sala, hora de inicio, hora de fin, idioma, subtítulos y precio base.
+     * @return DTO con la información de la función creada, incluyendo su ID, título de película, nombre de sala,
+     * nombre de cine, hora de inicio, hora de fin, idioma, subtítulos, precio base y estado de la función.
+     */
     @Override
     public FuncionResponseDTO crear(FuncionUpsertDTO dto) {
         PeliculaEntity pelicula = peliculaRepository.findById(dto.peliculaId())
@@ -63,7 +74,16 @@ public class FuncionDAOImpl implements FuncionDAO {
             throw new IllegalArgumentException("Ya existe una función en esa sala a esa hora de inicio");
         }
     }
-
+    /**
+     * Actualiza la información de una función existente en el sistema CINEMAX. Verifica que la función, película y sala existan,
+     * y que la hora de fin sea posterior a la hora de inicio. Si se cambia la sala, se eliminan los registros de asientos
+     * asociados a la función y se vuelven a crear para la nueva sala.
+     * @param id ID de la función que se desea actualizar.
+     * @param dto DTO que contiene la información actualizada de la función, incluyendo ID de película, ID de sala, hora de inicio,
+     * hora de fin, idioma, subtítulos y precio base.
+     * @return DTO con la información de la función actualizada, incluyendo su ID, título de película, nombre de sala, nombre de cine,
+     * hora de inicio, hora de fin, idioma, subtítulos, precio base y estado de la función.
+     */
     @Override
     public FuncionResponseDTO actualizar(Long id, FuncionUpsertDTO dto) {
         FuncionEntity entity = funcionRepository.findById(id)
@@ -107,7 +127,14 @@ public class FuncionDAOImpl implements FuncionDAO {
             throw new IllegalArgumentException("Ya existe una función en esa sala a esa hora de inicio");
         }
     }
-
+    /**
+     * Cancela una función existente en el sistema CINEMAX estableciendo su estado a CANCELADA.
+     * Verifica que la función exista antes de cancelarla.
+     * @param id ID de la función que se desea cancelar.
+     * @return DTO con la información de la función cancelada, incluyendo su ID, título de película,
+     * nombre de sala, nombre de cine, hora de inicio,
+     * hora de fin, idioma, subtítulos, precio base y estado de la función (CANCELADA).
+     */
     @Override
     public FuncionResponseDTO cancelar(Long id) {
         FuncionEntity entity = funcionRepository.findById(id)
@@ -115,7 +142,12 @@ public class FuncionDAOImpl implements FuncionDAO {
         entity.setEstado(EstadoFuncion.CANCELADA);
         return toDTO(funcionRepository.save(entity));
     }
-
+    /**
+     * Lista todas las funciones disponibles en el sistema CINEMAX. Devuelve una lista de DTOs con la información de cada función,
+     * incluyendo su ID, título de película, nombre de sala, nombre de cine, hora de inicio, hora de fin, idioma,
+     * subtítulos, precio base y estado.
+     * @return Lista de DTOs con la información de todas las funciones disponibles en el sistema CINEMAX.
+     */
     @Override
     @Transactional(readOnly = true)
     public List<FuncionResponseDTO> listarTodas() {
@@ -133,7 +165,14 @@ public class FuncionDAOImpl implements FuncionDAO {
                 .map(this::toDTO)
                 .toList();
     }
-
+    /**
+     * Convierte una entidad de función a un DTO de respuesta, extrayendo la información relevante de la función,
+     * película, sala y cine asociados.
+     * @param f Entidad de función que se desea convertir a DTO.
+     * @return DTO con la información de la función, incluyendo su ID, título de película,
+     * nombre de sala, nombre de cine, hora de inicio, hora de fin, idioma,
+     * subtítulos, precio base y estado.
+     */
     private FuncionResponseDTO toDTO(FuncionEntity f) {
         PeliculaEntity p = f.getPelicula();
         SalaEntity s = f.getSala();
@@ -156,7 +195,8 @@ public class FuncionDAOImpl implements FuncionDAO {
                 f.getEstado().name()
         );
     }
-
+    // Método auxiliar para inicializar los registros de asientos asociados a una función. Verifica si ya existen
+    // registros para la función antes de crearlos.
     private void inicializarAsientosFuncion(FuncionEntity funcion) {
         Long salaId = funcion.getSala().getId();
 

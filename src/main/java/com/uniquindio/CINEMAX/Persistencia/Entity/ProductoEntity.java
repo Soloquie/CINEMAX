@@ -6,7 +6,10 @@ import org.hibernate.annotations.CreationTimestamp;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-
+/* Entidad JPA que representa un producto en el sistema CINEMAX. Cada producto tiene un SKU único, un nombre,
+ un precio y un estado de actividad.
+ * La entidad también registra la fecha de creación del producto para fines de auditoría.
+  */
 @Getter @Setter
 @NoArgsConstructor @AllArgsConstructor
 @Builder

@@ -11,7 +11,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.*;
 import java.util.List;
-
+/**
+ * Implementación de la interfaz FuncionesService para gestionar las funciones en el sistema CINEMAX.
+ * Esta clase utiliza varios repositorios para interactuar con la base de datos y realizar las operaciones necesarias.
+ */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)

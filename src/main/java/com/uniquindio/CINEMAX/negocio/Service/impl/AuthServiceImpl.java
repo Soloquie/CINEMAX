@@ -23,20 +23,23 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Set;
 import java.util.UUID;
-
+/**
+ * Implementación de la interfaz AuthService para gestionar la autenticación y autorización en el sistema CINEMAX.
+ * Esta clase maneja el registro, inicio de sesión, verificación de correo electrónico y restablecimiento de contraseña.
+ * Utiliza DAOs para interactuar con la base de datos y servicios auxiliares para generar tokens JWT y enviar correos electrónicos.
+ */
 @Service
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
-
+    // DAOs para interactuar con la base de datos
     private final UsuarioDAO usuarioDAO;
     private final RolDAO rolDAO;
     private final TokenUsuarioDAO tokenUsuarioDAO;
-
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final EmailService emailService;
 
-    // --- Config ---
+    // Valores de configuración para los endpoints y tiempos de expiración de tokens
     @Value("${app.verification.endpoint:http://localhost:4200/api/auth/verify-email}")
     private String verificationEndpoint;
 
@@ -57,13 +60,13 @@ public class AuthServiceImpl implements AuthService {
 
     @Value("${app.auth.lock-minutes:15}")
     private int lockMinutes;
-
-    // bcrypt("dummy") para timing-safe cuando el usuario NO existe
+    // Hash dummy para mitigar ataques de timing en el login
     private static final String DUMMY_HASH =
             "$2a$10$7EqJtq98hPqEX7fNZaFWoOhi5pWk0pZ5s6m0qOQ8bQ4b9v9l6y9yW";
 
-    // ----------------- AUTH -----------------
-
+    /* Implementación del método de registro de usuarios. Valida la información, crea el usuario,
+     *genera un token de verificación y envía el correo.
+     */
     @Override
     @Transactional
     public MessageResponseDTO register(RegisterRequestDTO request) {
@@ -73,11 +76,9 @@ public class AuthServiceImpl implements AuthService {
             throw new IllegalArgumentException("Ya existe un usuario registrado con ese email");
         }
 
-        // Asegurar rol CLIENTE
         rolDAO.buscarPorNombre("CLIENTE")
                 .orElseThrow(() -> new IllegalStateException("No existe el rol CLIENTE en BD"));
 
-        // OJO: aquí se asume que tu Usuario(dom) tiene intentosFallidos y bloqueadoHasta
         Usuario nuevo = new Usuario(
                 null,
                 request.nombre().trim(),
@@ -104,7 +105,9 @@ public class AuthServiceImpl implements AuthService {
 
         return new MessageResponseDTO("Registro exitoso. Revisa tu correo para verificar la cuenta.");
     }
-
+    /* Implementación del método de inicio de sesión. Valida las credenciales, maneja bloqueos por intentos fallidos,
+     *verifica el estado del usuario y genera un token JWT si todo es correcto.
+     */
     @Override
     @Transactional(noRollbackFor = IllegalArgumentException.class)
     public AuthResponseDTO login(LoginRequestDTO request) {
@@ -113,23 +116,19 @@ public class AuthServiceImpl implements AuthService {
 
         Usuario usuario = usuarioDAO.buscarPorEmail(email).orElse(null);
 
-        // Timing-safe + respuesta genérica
         if (usuario == null) {
             passwordEncoder.matches(request.password(), DUMMY_HASH);
             throw new IllegalArgumentException("Credenciales inválidas");
         }
 
-        // Bloqueo duro
         if (usuario.estado() == EstadoUsuario.BLOQUEADO || usuario.estado() == EstadoUsuario.INACTIVO) {
             throw new IllegalArgumentException("Usuario no habilitado para iniciar sesión");
         }
 
-        // Bloqueo temporal
         if (usuario.bloqueadoHasta() != null && usuario.bloqueadoHasta().isAfter(now)) {
             throw new IllegalArgumentException("Cuenta temporalmente bloqueada. Intenta más tarde.");
         }
 
-        // Email verificado
         if (!usuario.emailVerificado()) {
             throw new IllegalArgumentException("Debes verificar tu correo antes de iniciar sesión");
         }
@@ -144,7 +143,7 @@ public class AuthServiceImpl implements AuthService {
                 bloqueadoHasta = now.plusMinutes(lockMinutes);
                 intentos = 0; // opcional
             }
-
+            // Actualizamos el usuario con los nuevos intentos y posible bloqueo
             Usuario actualizado = new Usuario(
                     usuario.id(),
                     usuario.nombre(),
@@ -164,8 +163,7 @@ public class AuthServiceImpl implements AuthService {
 
             throw new IllegalArgumentException("Credenciales inválidas");
         }
-
-        // Login OK → reset intentos + limpiar bloqueo + set ultimoLogin
+        // Login exitoso: reseteamos intentos y bloqueos, actualizamos último login
         Usuario actualizadoOk = new Usuario(
                 usuario.id(),
                 usuario.nombre(),
@@ -184,7 +182,7 @@ public class AuthServiceImpl implements AuthService {
         usuarioDAO.guardar(actualizadoOk);
 
         String token = jwtService.generateToken(usuario.id(), usuario.email(), usuario.roles());
-
+        // Construimos el DTO de resumen del usuario para incluir en la respuesta
         UserSummaryDTO userSummary = new UserSummaryDTO(
                 usuario.id(),
                 usuario.nombre(),
@@ -198,6 +196,13 @@ public class AuthServiceImpl implements AuthService {
         return new AuthResponseDTO(token, "Bearer", jwtExpiresInSeconds, userSummary);
     }
 
+    /**
+     * Implementación del método de verificación de correo electrónico. Valida el token,
+     * verifica que no haya sido usado o expirado,
+     * @param request DTO que contiene el token de verificación enviado al correo del usuario.
+     * @return MessageResponseDTO con el resultado de la verificación, indicando si fue exitosa
+     * o si el correo ya estaba verificado.
+     */
     @Override
     @Transactional
     public MessageResponseDTO verifyEmail(VerifyEmailRequestDTO request) {
@@ -225,7 +230,7 @@ public class AuthServiceImpl implements AuthService {
         if (usuario.emailVerificado()) {
             return new MessageResponseDTO("Tu correo ya estaba verificado.");
         }
-
+        // Actualizamos el usuario para marcar el correo como verificado
         Usuario actualizado = new Usuario(
                 usuario.id(),
                 usuario.nombre(),
@@ -243,7 +248,6 @@ public class AuthServiceImpl implements AuthService {
         );
         usuarioDAO.guardar(actualizado);
 
-        // marcar token como usado
         tokenUsuarioDAO.guardar(new TokenUsuario(
                 token.id(), token.usuarioId(), token.token(), token.tipo(), token.creadoEn(), token.expiraEn(), now
         ));
@@ -251,6 +255,13 @@ public class AuthServiceImpl implements AuthService {
         return new MessageResponseDTO("Correo verificado correctamente. Ya puedes iniciar sesión.");
     }
 
+    /**
+     * Implementación del método para reenviar el correo de verificación. Busca el usuario por email, verifica su estado
+     * y si el correo no está verificado, invalida los tokens anteriores
+     * y envía un nuevo correo con un nuevo token de verificación.
+     * @param request DTO que contiene el email del usuario para el cual se desea reenviar el correo de verificación.
+     * @return MessageResponseDTO indicando que se ha reenviado el correo de verificación.
+     */
     @Override
     @Transactional
     public MessageResponseDTO resendVerification(ResendVerificationDTO request) {
@@ -267,7 +278,7 @@ public class AuthServiceImpl implements AuthService {
                 .forEach(t -> tokenUsuarioDAO.guardar(new TokenUsuario(
                         t.id(), t.usuarioId(), t.token(), t.tipo(), t.creadoEn(), t.expiraEn(), now
                 )));
-
+        // Creamos un nuevo token de verificación y lo guardamos
         TokenUsuario nuevoToken = crearTokenVerificacion(usuario.id());
         TokenUsuario guardado = tokenUsuarioDAO.guardar(nuevoToken);
 
@@ -277,14 +288,17 @@ public class AuthServiceImpl implements AuthService {
         return new MessageResponseDTO("Te reenviamos el correo de verificación.");
     }
 
-    // ----------------- PASSWORD RESET -----------------
-
+    /**
+     * Implementación del método para iniciar el proceso de recuperación de contraseña. Busca el usuario por email,
+     * y si existe, invalida los tokens de reset anteriores, crea un nuevo token de reset y envía un correo con el enlace.
+     * @param request DTO que contiene el email del usuario que ha olvidado su contraseña.
+     * @return MessageResponseDTO indicando que se ha enviado un enlace de recuperación si el correo existe.
+     */
     @Override
     @Transactional
     public MessageResponseDTO forgotPassword(ForgotPasswordRequestDTO request) {
         String email = normalizeEmail(request.email());
 
-        // Respuesta genérica (no revelar existencia)
         Usuario usuario = usuarioDAO.buscarPorEmail(email).orElse(null);
         if (usuario == null) {
             return new MessageResponseDTO("Si el correo existe, enviaremos un enlace de recuperación.");
@@ -292,7 +306,6 @@ public class AuthServiceImpl implements AuthService {
 
         LocalDateTime now = LocalDateTime.now();
 
-        // invalidar tokens previos activos RESET_PASSWORD
         tokenUsuarioDAO.buscarActivosPorUsuarioYTipo(usuario.id(), TipoToken.RESET_PASSWORD)
                 .forEach(t -> tokenUsuarioDAO.guardar(new TokenUsuario(
                         t.id(), t.usuarioId(), t.token(), t.tipo(), t.creadoEn(), t.expiraEn(), now
@@ -318,7 +331,11 @@ public class AuthServiceImpl implements AuthService {
 
         return new MessageResponseDTO("Si el correo existe, enviaremos un enlace de recuperación.");
     }
-
+    /* Implementación del método para restablecer la contraseña. Valida el token, verifica que no haya sido usado o expirado,
+     * y si es válido, actualiza la contraseña del usuario y marca el token como usado.
+     * @param request DTO que contiene el token de reset y la nueva contraseña.
+     * @return MessageResponseDTO indicando que la contraseña se ha actualizado correctamente.
+     */
     @Override
     @Transactional
     public MessageResponseDTO resetPassword(ResetPasswordRequestDTO request) {
@@ -352,7 +369,6 @@ public class AuthServiceImpl implements AuthService {
         );
         usuarioDAO.guardar(actualizado);
 
-        // marcar token como usado
         tokenUsuarioDAO.guardar(new TokenUsuario(
                 token.id(), token.usuarioId(), token.token(), token.tipo(), token.creadoEn(), token.expiraEn(), now
         ));
@@ -360,8 +376,10 @@ public class AuthServiceImpl implements AuthService {
         return new MessageResponseDTO("Contraseña actualizada correctamente.");
     }
 
-    // ----------------- helpers -----------------
-
+    /* Método auxiliar para crear un token de verificación de correo electrónico. Genera un token único, establece su tipo y fecha de expiración.
+     * @param usuarioId ID del usuario para el cual se crea el token.
+     * @return TokenUsuario con la información del token creado.
+     */
     private TokenUsuario crearTokenVerificacion(Long usuarioId) {
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime expira = now.plus(Duration.ofMinutes(verificationTokenMinutes));

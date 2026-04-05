@@ -10,7 +10,13 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
-
+/* Interfaz de repositorio que extiende JpaRepository para gestionar las operaciones de persistencia relacionadas
+* con los asientos de función en el sistema CINEMAX. Proporciona métodos personalizados para buscar asientos por función,
+*  eliminar asientos por función, verificar la existencia de asientos para una función específica y realizar consultas
+*  personalizadas para obtener los asientos de una función junto con sus detalles relacionados. Además, incluye métodos
+*  para bloquear y liberar asientos utilizando bloqueos pesimistas y actualizaciones masivas, lo que es esencial para
+*  gestionar la disponibilidad de los asientos durante el proceso de reserva.
+  */
 public interface FuncionAsientoRepository extends JpaRepository<FuncionAsientoEntity, Long> {
     List<FuncionAsientoEntity> findByFuncionId(Long funcionId);
     void deleteByFuncionId(Long funcionId);

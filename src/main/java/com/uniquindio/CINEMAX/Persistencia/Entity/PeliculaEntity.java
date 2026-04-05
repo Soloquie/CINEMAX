@@ -11,7 +11,12 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
-
+/* Entidad JPA que representa una película en el sistema CINEMAX. Cada película tiene un título, sinopsis, duración,
+* clasificación, fecha de estreno y URL del póster.  La entidad también incluye un estado de actividad para indicar si la
+* película está actualmente en cartelera, así como fechas de creación y actualización para fines de auditoría.
+* Además, se establece una relación de muchos a muchos con la entidad Género para categorizar las películas
+* según sus géneros cinematográficos.
+  */
 @Getter @Setter
 @NoArgsConstructor @AllArgsConstructor
 @Builder

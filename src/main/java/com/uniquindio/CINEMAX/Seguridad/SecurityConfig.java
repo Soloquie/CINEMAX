@@ -15,7 +15,13 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
-
+/* Configuración de seguridad para la aplicación CINEMAX utilizando Spring Security.
+ * Esta clase define las reglas de seguridad para las diferentes rutas de la API, especificando qué endpoints son
+ *  públicos y cuáles requieren autenticación o roles específicos.
+ * Además, se integra el filtro de autenticación JWT para validar los tokens en cada solicitud, se deshabilita
+ * CSRF (ya que se usa JWT) y se configura el manejo de excepciones para respuestas adecuadas en caso de acceso
+ *  no autorizado o denegado.
+   */
 @Configuration
 public class SecurityConfig {
 

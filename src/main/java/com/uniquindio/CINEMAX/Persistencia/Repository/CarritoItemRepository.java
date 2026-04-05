@@ -6,7 +6,12 @@ import org.springframework.data.jpa.repository.*;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
-
+/* Interfaz de repositorio que extiende JpaRepository para gestionar las operaciones de persistencia relacionadas con
+* los items del carrito en el sistema CINEMAX. Proporciona métodos personalizados para buscar items por carrito, tipo
+* y asiento de función, verificar la existencia de un item específico y eliminar items según ciertos criterios. Además,
+*  incluye una consulta personalizada para obtener los items del carrito junto con sus detalles relacionados,
+*  como la función, el asiento, la película, la sala y el cine asociados.
+ */
 public interface CarritoItemRepository extends JpaRepository<CarritoItemEntity, Long> {
 
     List<CarritoItemEntity> findByCarritoIdAndTipoAndFuncionAsientoIdIn(

@@ -9,7 +9,12 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
 import java.util.List;
-
+/* Configuración de CORS para permitir solicitudes desde el frontend (Angular) hacia el backend (Spring Boot).
+ * Esta clase define una configuración de CORS personalizada que especifica los orígenes permitidos, los métodos HTTP permitidos,
+ * los encabezados permitidos y si se permiten las credenciales. Esto es esencial para habilitar la comunicación
+ *  entre el frontend y el backend sin problemas,  especialmente cuando están alojados en dominios diferentes
+ *  durante el desarrollo.
+   */
 @Configuration
 public class CorsConfig {
 
