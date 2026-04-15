@@ -13,4 +13,5 @@ public interface CarritoService {
     void addSeatHoldsToCart(String userEmail, List<Long> funcionAsientoIds, LocalDateTime expiraEn);
     void removeSeatHoldsFromCart(String userEmail, List<Long> funcionAsientoIds);
     CarritoResponseDTO getMyCart(String userEmail);
+
 }

@@ -1,7 +1,10 @@
 package com.uniquindio.CINEMAX.Controller;
 
 import com.uniquindio.CINEMAX.negocio.DTO.CarritoResponseDTO;
+import com.uniquindio.CINEMAX.negocio.DTO.MessageResponseDTO;
+import com.uniquindio.CINEMAX.negocio.DTO.RemoveCartItemsRequestDTO;
 import com.uniquindio.CINEMAX.negocio.Service.CarritoService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -23,5 +26,14 @@ public class CarritoController {
     @GetMapping
     public CarritoResponseDTO miCarrito(Authentication auth) {
         return carritoService.getMyCart(auth.getName());
+    }
+
+    @PostMapping("/remove-seats")
+    public MessageResponseDTO removeSeats(
+            @Valid @RequestBody RemoveCartItemsRequestDTO request,
+            Authentication auth
+    ) {
+        carritoService.removeSeatHoldsFromCart(auth.getName(), request.funcionAsientoIds());
+        return new MessageResponseDTO("Ítems eliminados del carrito correctamente.");
     }
 }
