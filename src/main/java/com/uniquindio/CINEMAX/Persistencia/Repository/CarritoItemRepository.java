@@ -24,17 +24,32 @@ public interface CarritoItemRepository extends JpaRepository<CarritoItemEntity, 
             Long carritoId, TipoCarritoItem tipo, List<Long> funcionAsientoIds
     );
 
+    java.util.Optional<CarritoItemEntity> findByCarritoIdAndTipoAndProductoId(
+            Long carritoId, TipoCarritoItem tipo, Long productoId
+    );
+
+    List<CarritoItemEntity> findByCarritoIdAndTipoAndProductoIdIn(
+            Long carritoId, TipoCarritoItem tipo, List<Long> productoIds
+    );
+
+    boolean existsByCarritoIdAndTipoAndProductoId(Long carritoId, TipoCarritoItem tipo, Long productoId);
+
+
+    void deleteByCarritoIdAndTipoAndProductoId(Long carritoId, TipoCarritoItem tipo, Long productoId);
+
     @Query("""
-           select ci
-           from CarritoItemEntity ci
-           left join fetch ci.funcionAsiento fa
-           left join fetch fa.asiento a
-           left join fetch fa.funcion f
-           left join fetch f.pelicula p
-           left join fetch f.sala s
-           left join fetch s.cine c
-           where ci.carrito.id = :carritoId
-           order by ci.id
-           """)
+       select ci
+       from CarritoItemEntity ci
+       left join fetch ci.funcionAsiento fa
+       left join fetch fa.asiento a
+       left join fetch fa.funcion f
+       left join fetch f.pelicula p
+       left join fetch f.sala s
+       left join fetch s.cine c
+       left join fetch ci.producto pr
+       where ci.carrito.id = :carritoId
+       order by ci.id
+       """)
     List<CarritoItemEntity> findItemsWithDetails(@Param("carritoId") Long carritoId);
+
 }

@@ -3,13 +3,11 @@ package com.uniquindio.CINEMAX.Persistencia.Entity;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-/* Entidad JPA que representa un producto en el sistema CINEMAX. Cada producto tiene un SKU único, un nombre,
- un precio y un estado de actividad.
- * La entidad también registra la fecha de creación del producto para fines de auditoría.
-  */
+
 @Getter @Setter
 @NoArgsConstructor @AllArgsConstructor
 @Builder
@@ -21,20 +19,34 @@ public class ProductoEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name="sku", nullable=false, length=60)
+    @Column(name = "sku", nullable = false, unique = true, length = 60)
     private String sku;
 
-    @Column(name="nombre", nullable=false, length=140)
+    @Column(name = "nombre", nullable = false, length = 140)
     private String nombre;
 
-    @Column(name="precio", nullable=false, precision=10, scale=2)
+    @Column(name = "descripcion")
+    private String descripcion;
+
+    @Column(name = "precio", nullable = false, precision = 10, scale = 2)
     private BigDecimal precio;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "categoria", nullable = false, length = 20)
+    private ProductoCategoria categoria;
+
+    @Column(name = "imagen_url", length = 400)
+    private String imagenUrl;
+
     @Builder.Default
-    @Column(name="activo", nullable=false)
+    @Column(name = "activo", nullable = false)
     private Boolean activo = true;
 
     @CreationTimestamp
-    @Column(name="creado_en", updatable=false)
+    @Column(name = "creado_en", updatable = false)
     private LocalDateTime creadoEn;
+
+    @UpdateTimestamp
+    @Column(name = "actualizado_en")
+    private LocalDateTime actualizadoEn;
 }

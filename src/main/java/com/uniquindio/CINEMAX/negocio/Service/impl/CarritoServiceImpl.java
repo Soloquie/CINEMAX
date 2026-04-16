@@ -27,6 +27,8 @@ public class CarritoServiceImpl implements CarritoService {
     private final CarritoRepository carritoRepository;
     private final CarritoItemRepository carritoItemRepository;
     private final FuncionAsientoRepository funcionAsientoRepository;
+    private final ProductoRepository productoRepository;
+    private final InventarioRepository inventarioRepository;
     /**
      * Agrega asientos retenidos al carrito de un usuario específico. Si el usuario no tiene un carrito activo,
      * se crea uno nuevo.El método también establece la fecha de expiración del carrito según
@@ -179,12 +181,39 @@ public class CarritoServiceImpl implements CarritoService {
                         f.getInicio(),
                         a.getFila(),
                         a.getNumero(),
+                        null,
+                        null,
+                        null,
+                        null,
+                        1,
+                        ci.getPrecioUnitario(),
                         ci.getPrecioUnitario()
                 );
+            } else if (ci.getTipo() == TipoCarritoItem.PRODUCTO && ci.getProducto() != null) {
+                var pr = ci.getProducto();
+
+                return new CarritoItemResponseDTO(
+                        ci.getId(),
+                        ci.getTipo().name(),
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        pr.getId(),
+                        pr.getNombre(),
+                        pr.getDescripcion(),
+                        pr.getImagenUrl(),
+                        ci.getCantidad(),
+                        ci.getPrecioUnitario(),
+                        ci.getPrecioUnitario().multiply(java.math.BigDecimal.valueOf(ci.getCantidad()))
+                );
             }
-            return new CarritoItemResponseDTO(ci.getId(), ci.getTipo().name(),
-                    null, null, null, null, null, null, null, null,
-                    ci.getPrecioUnitario());
+
+            throw new IllegalStateException("Item de carrito inválido o incompleto: " + ci.getId());
         }).toList();
 
         return new CarritoResponseDTO(carrito.getId(), carrito.getEstado().name(), carrito.getExpiraEn(), dtoItems);
@@ -201,5 +230,96 @@ public class CarritoServiceImpl implements CarritoService {
                                 .expiraEn(null)
                                 .build()
                 ));
+    }
+
+    @Override
+    public void addProductsToCart(String userEmail, Long productoId, int cantidad) {
+        UsuarioEntity usuario = usuarioRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new IllegalArgumentException("Usuario no existe"));
+
+        CarritoEntity carrito = getOrCreateActiveCart(usuario);
+
+        boolean tieneAsientos = carritoItemRepository.findItemsWithDetails(carrito.getId()).stream()
+                .anyMatch(ci -> ci.getTipo() == TipoCarritoItem.ASIENTO);
+
+        if (!tieneAsientos) {
+            throw new IllegalStateException("Debes seleccionar al menos una función/asiento antes de agregar confitería");
+        }
+
+        ProductoEntity producto = productoRepository.findById(productoId)
+                .orElseThrow(() -> new IllegalArgumentException("Producto no existe"));
+
+        if (!Boolean.TRUE.equals(producto.getActivo())) {
+            throw new IllegalStateException("El producto no está disponible");
+        }
+
+        InventarioEntity inventario = inventarioRepository.findById(productoId)
+                .orElseThrow(() -> new IllegalStateException("Inventario no existe"));
+
+        if (inventario.getStock() < cantidad) {
+            throw new IllegalStateException("No hay stock suficiente");
+        }
+
+        CarritoItemEntity item = carritoItemRepository
+                .findByCarritoIdAndTipoAndProductoId(carrito.getId(), TipoCarritoItem.PRODUCTO, productoId)
+                .orElse(null);
+
+        if (item == null) {
+            item = CarritoItemEntity.builder()
+                    .carrito(carrito)
+                    .tipo(TipoCarritoItem.PRODUCTO)
+                    .producto(producto)
+                    .cantidad(cantidad)
+                    .precioUnitario(producto.getPrecio())
+                    .build();
+        } else {
+            int nuevaCantidad = item.getCantidad() + cantidad;
+            if (inventario.getStock() < nuevaCantidad) {
+                throw new IllegalStateException("No hay stock suficiente para aumentar la cantidad");
+            }
+            item.setCantidad(nuevaCantidad);
+        }
+
+        carritoItemRepository.save(item);
+    }
+
+    @Override
+    public void updateProductQuantity(String userEmail, Long productoId, int cantidad) {
+        UsuarioEntity usuario = usuarioRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new IllegalArgumentException("Usuario no existe"));
+
+        CarritoEntity carrito = carritoRepository
+                .findFirstByUsuarioIdAndEstadoOrderByActualizadoEnDesc(usuario.getId(), EstadoCarrito.ACTIVO)
+                .orElseThrow(() -> new IllegalArgumentException("No existe carrito activo"));
+
+        CarritoItemEntity item = carritoItemRepository
+                .findByCarritoIdAndTipoAndProductoId(carrito.getId(), TipoCarritoItem.PRODUCTO, productoId)
+                .orElseThrow(() -> new IllegalArgumentException("El producto no está en el carrito"));
+
+        InventarioEntity inventario = inventarioRepository.findById(productoId)
+                .orElseThrow(() -> new IllegalStateException("Inventario no existe"));
+
+        if (inventario.getStock() < cantidad) {
+            throw new IllegalStateException("No hay stock suficiente");
+        }
+
+        item.setCantidad(cantidad);
+        carritoItemRepository.save(item);
+    }
+
+    @Override
+    public void removeProductFromCart(String userEmail, Long productoId) {
+        UsuarioEntity usuario = usuarioRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new IllegalArgumentException("Usuario no existe"));
+
+        CarritoEntity carrito = carritoRepository
+                .findFirstByUsuarioIdAndEstadoOrderByActualizadoEnDesc(usuario.getId(), EstadoCarrito.ACTIVO)
+                .orElse(null);
+
+        if (carrito == null) return;
+
+        carritoItemRepository.deleteByCarritoIdAndTipoAndProductoId(
+                carrito.getId(), TipoCarritoItem.PRODUCTO, productoId
+        );
     }
 }

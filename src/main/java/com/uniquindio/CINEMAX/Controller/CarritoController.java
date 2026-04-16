@@ -1,8 +1,6 @@
 package com.uniquindio.CINEMAX.Controller;
 
-import com.uniquindio.CINEMAX.negocio.DTO.CarritoResponseDTO;
-import com.uniquindio.CINEMAX.negocio.DTO.MessageResponseDTO;
-import com.uniquindio.CINEMAX.negocio.DTO.RemoveCartItemsRequestDTO;
+import com.uniquindio.CINEMAX.negocio.DTO.*;
 import com.uniquindio.CINEMAX.negocio.Service.CarritoService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -35,5 +33,33 @@ public class CarritoController {
     ) {
         carritoService.removeSeatHoldsFromCart(auth.getName(), request.funcionAsientoIds());
         return new MessageResponseDTO("Ítems eliminados del carrito correctamente.");
+    }
+
+    @PostMapping("/productos")
+    public MessageResponseDTO addProducto(
+            @Valid @RequestBody AgregarProductoCarritoDTO request,
+            Authentication auth
+    ) {
+        carritoService.addProductsToCart(auth.getName(), request.productoId(), request.cantidad());
+        return new MessageResponseDTO("Producto agregado al carrito correctamente.");
+    }
+
+    @PutMapping("/productos/{productoId}")
+    public MessageResponseDTO updateProducto(
+            @PathVariable Long productoId,
+            @Valid @RequestBody ActualizarProductoCarritoDTO request,
+            Authentication auth
+    ) {
+        carritoService.updateProductQuantity(auth.getName(), productoId, request.cantidad());
+        return new MessageResponseDTO("Cantidad actualizada correctamente.");
+    }
+
+    @DeleteMapping("/productos/{productoId}")
+    public MessageResponseDTO removeProducto(
+            @PathVariable Long productoId,
+            Authentication auth
+    ) {
+        carritoService.removeProductFromCart(auth.getName(), productoId);
+        return new MessageResponseDTO("Producto eliminado del carrito.");
     }
 }
