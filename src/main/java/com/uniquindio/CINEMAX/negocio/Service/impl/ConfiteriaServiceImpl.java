@@ -3,6 +3,7 @@ package com.uniquindio.CINEMAX.negocio.Service.impl;
 import com.uniquindio.CINEMAX.Persistencia.Entity.*;
 import com.uniquindio.CINEMAX.Persistencia.Repository.*;
 import com.uniquindio.CINEMAX.negocio.DTO.*;
+import com.uniquindio.CINEMAX.negocio.Service.CloudinaryService;
 import com.uniquindio.CINEMAX.negocio.Service.ConfiteriaService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -15,6 +16,7 @@ import java.util.List;
 @Transactional
 public class ConfiteriaServiceImpl implements ConfiteriaService {
 
+    private final CloudinaryService cloudinaryService;
     private final ProductoRepository productoRepository;
     private final InventarioRepository inventarioRepository;
     private final InventarioMovimientoRepository inventarioMovimientoRepository;
@@ -43,27 +45,29 @@ public class ConfiteriaServiceImpl implements ConfiteriaService {
     }
 
     @Override
-    public ProductoAdminResponseDTO crear(ProductoUpsertDTO dto) {
-        if (productoRepository.existsBySku(dto.sku().trim())) {
+    public ProductoAdminResponseDTO crear(ProductoUpsertFormDTO form) {
+        if (productoRepository.existsBySku(form.getSku().trim())) {
             throw new IllegalArgumentException("Ya existe un producto con ese SKU");
         }
 
+        String imageUrl = cloudinaryService.uploadProductImage(form.getImagen());
+
         ProductoEntity producto = ProductoEntity.builder()
-                .sku(dto.sku().trim())
-                .nombre(dto.nombre().trim())
-                .descripcion(dto.descripcion())
-                .precio(dto.precio())
-                .categoria(ProductoCategoria.valueOf(dto.categoria().trim().toUpperCase()))
-                .imagenUrl(dto.imagenUrl())
-                .activo(dto.activo() == null ? true : dto.activo())
+                .sku(form.getSku().trim())
+                .nombre(form.getNombre().trim())
+                .descripcion(form.getDescripcion())
+                .precio(form.getPrecio())
+                .categoria(ProductoCategoria.valueOf(form.getCategoria().trim().toUpperCase()))
+                .imagenUrl(imageUrl)
+                .activo(form.getActivo() == null ? true : form.getActivo())
                 .build();
 
         ProductoEntity saved = productoRepository.save(producto);
 
         InventarioEntity inventario = InventarioEntity.builder()
                 .producto(saved)
-                .stock(dto.stock())
-                .stockMinimo(dto.stockMinimo())
+                .stock(form.getStock())
+                .stockMinimo(form.getStockMinimo())
                 .build();
 
         inventarioRepository.save(inventario);
@@ -72,7 +76,7 @@ public class ConfiteriaServiceImpl implements ConfiteriaService {
                 InventarioMovimientoEntity.builder()
                         .producto(saved)
                         .tipo(TipoMovimientoInventario.ENTRADA)
-                        .cantidad(dto.stock())
+                        .cantidad(form.getStock())
                         .motivo("Stock inicial")
                         .referencia("PRODUCTO-" + saved.getId())
                         .build()
@@ -82,24 +86,30 @@ public class ConfiteriaServiceImpl implements ConfiteriaService {
     }
 
     @Override
-    public ProductoAdminResponseDTO actualizar(Long id, ProductoUpsertDTO dto) {
+    public ProductoAdminResponseDTO actualizar(Long id, ProductoUpsertFormDTO form) {
         ProductoEntity producto = productoRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Producto no existe"));
 
-        producto.setSku(dto.sku().trim());
-        producto.setNombre(dto.nombre().trim());
-        producto.setDescripcion(dto.descripcion());
-        producto.setPrecio(dto.precio());
-        producto.setCategoria(ProductoCategoria.valueOf(dto.categoria().trim().toUpperCase()));
-        producto.setImagenUrl(dto.imagenUrl());
-        if (dto.activo() != null) producto.setActivo(dto.activo());
+        producto.setSku(form.getSku().trim());
+        producto.setNombre(form.getNombre().trim());
+        producto.setDescripcion(form.getDescripcion());
+        producto.setPrecio(form.getPrecio());
+        producto.setCategoria(ProductoCategoria.valueOf(form.getCategoria().trim().toUpperCase()));
+        if (form.getActivo() != null) {
+            producto.setActivo(form.getActivo());
+        }
+
+        String nuevaImagenUrl = cloudinaryService.uploadProductImage(form.getImagen());
+        if (nuevaImagenUrl != null) {
+            producto.setImagenUrl(nuevaImagenUrl);
+        }
 
         productoRepository.save(producto);
 
         InventarioEntity inventario = inventarioRepository.findById(id)
                 .orElseThrow(() -> new IllegalStateException("Inventario no existe para el producto"));
 
-        inventario.setStockMinimo(dto.stockMinimo());
+        inventario.setStockMinimo(form.getStockMinimo());
         inventarioRepository.save(inventario);
 
         return toAdminDTO(producto);

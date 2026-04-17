@@ -7,8 +7,8 @@ import java.util.List;
 public interface ConfiteriaService {
     List<ProductoPublicDTO> listarPublicos(String categoria);
     List<ProductoAdminResponseDTO> listarAdmin();
-    ProductoAdminResponseDTO crear(ProductoUpsertDTO dto);
-    ProductoAdminResponseDTO actualizar(Long id, ProductoUpsertDTO dto);
+    ProductoAdminResponseDTO crear(ProductoUpsertFormDTO form);
+    ProductoAdminResponseDTO actualizar(Long id, ProductoUpsertFormDTO form);
     void eliminar(Long id);
     ProductoAdminResponseDTO actualizarStock(Long id, ActualizarStockDTO dto);
 }

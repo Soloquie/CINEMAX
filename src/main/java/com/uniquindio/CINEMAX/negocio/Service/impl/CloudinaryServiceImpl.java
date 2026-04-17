@@ -21,6 +21,9 @@ public class CloudinaryServiceImpl implements CloudinaryService {
 
     @Value("${app.cloudinary.folder:cinemax/posters}")
     private String folder;
+    @Value("${app.cloudinary.products-folder:cinemax/products}")
+    private String productFolder;
+
 
     /**
      * Implementación del método para subir un póster a Cloudinary. Este método recibe un archivo MultipartFile,
@@ -42,6 +45,28 @@ public class CloudinaryServiceImpl implements CloudinaryService {
             return (String) res.get("secure_url");
         } catch (Exception e) {
             throw new IllegalStateException("No se pudo subir el póster a Cloudinary", e);
+        }
+    }
+
+    @Override
+    public String uploadProductImage(MultipartFile file) {
+        return uploadImage(file, productFolder, "No se pudo subir la imagen del producto a Cloudinary");
+    }
+
+    private String uploadImage(MultipartFile file, String folder, String errorMessage) {
+        if (file == null || file.isEmpty()) return null;
+
+        try {
+            Map<?, ?> res = cloudinary.uploader().upload(
+                    file.getBytes(),
+                    ObjectUtils.asMap(
+                            "folder", folder,
+                            "resource_type", "image"
+                    )
+            );
+            return (String) res.get("secure_url");
+        } catch (Exception e) {
+            throw new IllegalStateException(errorMessage, e);
         }
     }
 }
