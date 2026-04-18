@@ -188,7 +188,7 @@ public class CarritoServiceImpl implements CarritoService {
         if (carrito.getId() == null) {
             return new CarritoResponseDTO(null, carrito.getEstado().name(), null, List.of());
         }
-
+        purgeExpiredSeatItems(carrito);
         List<CarritoItemEntity> items = carritoItemRepository.findItemsWithDetails(carrito.getId());
 
         List<CarritoItemResponseDTO> dtoItems = items.stream().map(ci -> {
@@ -351,5 +351,22 @@ public class CarritoServiceImpl implements CarritoService {
         carritoItemRepository.deleteByCarritoIdAndTipoAndProductoId(
                 carrito.getId(), TipoCarritoItem.PRODUCTO, productoId
         );
+    }
+
+    private void purgeExpiredSeatItems(CarritoEntity carrito) {
+        List<CarritoItemEntity> items = carritoItemRepository.findItemsWithDetails(carrito.getId());
+        LocalDateTime now = LocalDateTime.now();
+
+        List<Long> expirados = items.stream()
+                .filter(ci -> ci.getTipo() == TipoCarritoItem.ASIENTO)
+                .filter(ci -> ci.getFuncionAsiento() != null)
+                .filter(ci -> ci.getFuncionAsiento().getRetencionExpira() != null)
+                .filter(ci -> !ci.getFuncionAsiento().getRetencionExpira().isAfter(now))
+                .map(ci -> ci.getFuncionAsiento().getId())
+                .toList();
+
+        if (expirados.isEmpty()) return;
+
+        removeSeatHoldsFromCart(carrito.getUsuario().getEmail(), expirados);
     }
 }
