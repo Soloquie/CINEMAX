@@ -110,25 +110,55 @@ public class CarritoServiceImpl implements CarritoService {
 
         if (carrito == null) return;
 
+        // 1. Liberar asientos
+        List<FuncionAsientoEntity> asientos = funcionAsientoRepository.findAllById(funcionAsientoIds);
+
+        for (FuncionAsientoEntity fa : asientos) {
+            fa.setEstado(EstadoFuncionAsiento.DISPONIBLE);
+            fa.setRetencionExpira(null);
+        }
+
+        funcionAsientoRepository.saveAll(asientos);
+
+        // 2. Eliminar boletas del carrito
         carritoItemRepository.deleteByCarritoIdAndTipoAndFuncionAsientoIdIn(
                 carrito.getId(), TipoCarritoItem.ASIENTO, funcionAsientoIds
         );
 
-        // Recalcular expiración del carrito
-        List<CarritoItemEntity> items = carritoItemRepository.findItemsWithDetails(carrito.getId());
-        if (items.isEmpty()) {
+        // 3. Verificar si quedaron asientos
+        List<CarritoItemEntity> itemsRestantes = carritoItemRepository.findItemsWithDetails(carrito.getId());
+
+        boolean tieneAsientos = itemsRestantes.stream()
+                .anyMatch(ci -> ci.getTipo() == TipoCarritoItem.ASIENTO);
+
+        // 4. Si ya no quedan asientos, eliminar también la confitería
+        if (!tieneAsientos) {
+            carritoItemRepository.deleteByCarritoIdAndTipo(
+                    carrito.getId(), TipoCarritoItem.PRODUCTO
+            );
+
+            // volver a cargar items porque ya cambió el carrito
+            itemsRestantes = carritoItemRepository.findItemsWithDetails(carrito.getId());
+        }
+
+        // 5. Recalcular expiración
+        if (itemsRestantes.isEmpty()) {
             carrito.setExpiraEn(null);
         } else {
             LocalDateTime max = null;
-            // La expiración del carrito se establece en la fecha de expiración más lejana entre los items restantes,
-            for (CarritoItemEntity ci : items) {
+
+            for (CarritoItemEntity ci : itemsRestantes) {
                 if (ci.getTipo() == TipoCarritoItem.ASIENTO && ci.getFuncionAsiento() != null) {
                     LocalDateTime e = ci.getFuncionAsiento().getRetencionExpira();
-                    if (e != null && (max == null || e.isAfter(max))) max = e;
+                    if (e != null && (max == null || e.isAfter(max))) {
+                        max = e;
+                    }
                 }
             }
+
             carrito.setExpiraEn(max);
         }
+
         carritoRepository.save(carrito);
     }
 

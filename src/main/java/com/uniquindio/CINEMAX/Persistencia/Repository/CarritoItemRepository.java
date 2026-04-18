@@ -52,4 +52,7 @@ public interface CarritoItemRepository extends JpaRepository<CarritoItemEntity, 
        """)
     List<CarritoItemEntity> findItemsWithDetails(@Param("carritoId") Long carritoId);
 
+    List<CarritoItemEntity> findByCarritoIdAndTipo(Long carritoId, TipoCarritoItem tipo);
+
+    void deleteByCarritoIdAndTipo(Long carritoId, TipoCarritoItem tipo);
 }
