@@ -19,4 +19,6 @@ public interface AuthService {
     MessageResponseDTO forgotPassword(ForgotPasswordRequestDTO request);
 
     MessageResponseDTO resetPassword(ResetPasswordRequestDTO request);
+
+    AuthResponseDTO refreshToken(RefreshTokenRequestDTO request);
 }

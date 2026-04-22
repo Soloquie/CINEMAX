@@ -86,4 +86,13 @@ public class AuthController {
     public ResponseEntity<MessageResponseDTO> resetPassword(@Valid @RequestBody ResetPasswordRequestDTO request) {
         return ResponseEntity.ok(authService.resetPassword(request));
     }
+
+    /**
+     * Endpoint para refrescar el token de JWT del login
+     * @return Un objeto MessageResponseDTO que contiene un mensaje indicando el resultado del token refrescado.
+     */
+    @PostMapping("/refresh")
+    public ResponseEntity<AuthResponseDTO> refresh(@Valid @RequestBody RefreshTokenRequestDTO request) {
+        return ResponseEntity.ok(authService.refreshToken(request));
+    }
 }

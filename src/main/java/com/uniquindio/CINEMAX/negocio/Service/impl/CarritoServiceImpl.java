@@ -4,6 +4,15 @@ import com.uniquindio.CINEMAX.Persistencia.Entity.*;
 import com.uniquindio.CINEMAX.Persistencia.Repository.*;
 import com.uniquindio.CINEMAX.negocio.DTO.CarritoItemResponseDTO;
 import com.uniquindio.CINEMAX.negocio.DTO.CarritoResponseDTO;
+import com.uniquindio.CINEMAX.negocio.Exception.CantidadInvalidaException;
+import com.uniquindio.CINEMAX.negocio.Exception.CarritoInvalidoException;
+import com.uniquindio.CINEMAX.negocio.Exception.ConfiteriaNoPermitidaSinBoletaException;
+import com.uniquindio.CINEMAX.negocio.Exception.FuncionAsientoNoEncontradoException;
+import com.uniquindio.CINEMAX.negocio.Exception.InventarioNoEncontradoException;
+import com.uniquindio.CINEMAX.negocio.Exception.ProductoNoDisponibleException;
+import com.uniquindio.CINEMAX.negocio.Exception.ProductoNoEncontradoException;
+import com.uniquindio.CINEMAX.negocio.Exception.StockInsuficienteException;
+import com.uniquindio.CINEMAX.negocio.Exception.UsuarioNoEncontradoException;
 import com.uniquindio.CINEMAX.negocio.Service.CarritoService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -12,7 +21,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 /**
  * Implementación de la interfaz CarritoService para gestionar el carrito de compras en el sistema CINEMAX.
  * Esta clase proporciona métodos para agregar y eliminar asientos retenidos en el carrito, así como para obtener el estado actual del carrito de un usuario.
@@ -42,7 +53,7 @@ public class CarritoServiceImpl implements CarritoService {
     public void addSeatHoldsToCart(String userEmail, List<Long> funcionAsientoIds, LocalDateTime expiraEn) {
 
         UsuarioEntity usuario = usuarioRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new IllegalArgumentException("Usuario no existe"));
+                .orElseThrow(UsuarioNoEncontradoException::new);
 
         CarritoEntity carrito = getOrCreateActiveCart(usuario);
 
@@ -59,6 +70,12 @@ public class CarritoServiceImpl implements CarritoService {
          *  Finalmente, si hay nuevos items para agregar, se guardan en la base de datos y se actualiza la fecha de expiración del carrito si es necesario.
          */
         List<FuncionAsientoEntity> fas = funcionAsientoRepository.findAllById(funcionAsientoIds);
+
+        Set<Long> requestedIds = new HashSet<>(funcionAsientoIds);
+        Set<Long> foundIds = fas.stream().map(FuncionAsientoEntity::getId).collect(java.util.stream.Collectors.toSet());
+        if (!foundIds.containsAll(requestedIds)) {
+            throw new FuncionAsientoNoEncontradoException("Uno o más asientos de función no existen.");
+        }
 
         List<CarritoItemEntity> nuevos = new ArrayList<>();
         for (FuncionAsientoEntity fa : fas) {
@@ -102,7 +119,7 @@ public class CarritoServiceImpl implements CarritoService {
     public void removeSeatHoldsFromCart(String userEmail, List<Long> funcionAsientoIds) {
 
         UsuarioEntity usuario = usuarioRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new IllegalArgumentException("Usuario no existe"));
+                .orElseThrow(UsuarioNoEncontradoException::new);
 
         CarritoEntity carrito = carritoRepository
                 .findFirstByUsuarioIdAndEstadoOrderByActualizadoEnDesc(usuario.getId(), EstadoCarrito.ACTIVO)
@@ -174,7 +191,7 @@ public class CarritoServiceImpl implements CarritoService {
     public CarritoResponseDTO getMyCart(String userEmail) {
 
         UsuarioEntity usuario = usuarioRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new IllegalArgumentException("Usuario no existe"));
+                .orElseThrow(UsuarioNoEncontradoException::new);
 
         CarritoEntity carrito = carritoRepository
                 .findFirstByUsuarioIdAndEstadoOrderByActualizadoEnDesc(usuario.getId(), EstadoCarrito.ACTIVO)
@@ -243,7 +260,7 @@ public class CarritoServiceImpl implements CarritoService {
                 );
             }
 
-            throw new IllegalStateException("Item de carrito inválido o incompleto: " + ci.getId());
+            throw new CarritoInvalidoException("Item de carrito inválido o incompleto: " + ci.getId());
         }).toList();
 
         return new CarritoResponseDTO(carrito.getId(), carrito.getEstado().name(), carrito.getExpiraEn(), dtoItems);
@@ -264,8 +281,12 @@ public class CarritoServiceImpl implements CarritoService {
 
     @Override
     public void addProductsToCart(String userEmail, Long productoId, int cantidad) {
+        if (cantidad <= 0) {
+            throw new CantidadInvalidaException("La cantidad debe ser mayor a cero.");
+        }
+
         UsuarioEntity usuario = usuarioRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new IllegalArgumentException("Usuario no existe"));
+                .orElseThrow(UsuarioNoEncontradoException::new);
 
         CarritoEntity carrito = getOrCreateActiveCart(usuario);
 
@@ -273,21 +294,21 @@ public class CarritoServiceImpl implements CarritoService {
                 .anyMatch(ci -> ci.getTipo() == TipoCarritoItem.ASIENTO);
 
         if (!tieneAsientos) {
-            throw new IllegalStateException("Debes seleccionar al menos una función/asiento antes de agregar confitería");
+            throw new ConfiteriaNoPermitidaSinBoletaException();
         }
 
         ProductoEntity producto = productoRepository.findById(productoId)
-                .orElseThrow(() -> new IllegalArgumentException("Producto no existe"));
+                .orElseThrow(ProductoNoEncontradoException::new);
 
         if (!Boolean.TRUE.equals(producto.getActivo())) {
-            throw new IllegalStateException("El producto no está disponible");
+            throw new ProductoNoDisponibleException("El producto no está disponible.");
         }
 
         InventarioEntity inventario = inventarioRepository.findById(productoId)
-                .orElseThrow(() -> new IllegalStateException("Inventario no existe"));
+                .orElseThrow(InventarioNoEncontradoException::new);
 
         if (inventario.getStock() < cantidad) {
-            throw new IllegalStateException("No hay stock suficiente");
+            throw new StockInsuficienteException("No hay stock suficiente.");
         }
 
         CarritoItemEntity item = carritoItemRepository
@@ -305,7 +326,7 @@ public class CarritoServiceImpl implements CarritoService {
         } else {
             int nuevaCantidad = item.getCantidad() + cantidad;
             if (inventario.getStock() < nuevaCantidad) {
-                throw new IllegalStateException("No hay stock suficiente para aumentar la cantidad");
+                throw new StockInsuficienteException("No hay stock suficiente para aumentar la cantidad.");
             }
             item.setCantidad(nuevaCantidad);
         }
@@ -315,22 +336,26 @@ public class CarritoServiceImpl implements CarritoService {
 
     @Override
     public void updateProductQuantity(String userEmail, Long productoId, int cantidad) {
+        if (cantidad <= 0) {
+            throw new CantidadInvalidaException("La cantidad debe ser mayor a cero.");
+        }
+
         UsuarioEntity usuario = usuarioRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new IllegalArgumentException("Usuario no existe"));
+                .orElseThrow(UsuarioNoEncontradoException::new);
 
         CarritoEntity carrito = carritoRepository
                 .findFirstByUsuarioIdAndEstadoOrderByActualizadoEnDesc(usuario.getId(), EstadoCarrito.ACTIVO)
-                .orElseThrow(() -> new IllegalArgumentException("No existe carrito activo"));
+                .orElseThrow(() -> new CarritoInvalidoException("No existe carrito activo."));
 
         CarritoItemEntity item = carritoItemRepository
                 .findByCarritoIdAndTipoAndProductoId(carrito.getId(), TipoCarritoItem.PRODUCTO, productoId)
-                .orElseThrow(() -> new IllegalArgumentException("El producto no está en el carrito"));
+                .orElseThrow(() -> new CarritoInvalidoException("El producto no está en el carrito."));
 
         InventarioEntity inventario = inventarioRepository.findById(productoId)
-                .orElseThrow(() -> new IllegalStateException("Inventario no existe"));
+                .orElseThrow(InventarioNoEncontradoException::new);
 
         if (inventario.getStock() < cantidad) {
-            throw new IllegalStateException("No hay stock suficiente");
+            throw new StockInsuficienteException("No hay stock suficiente.");
         }
 
         item.setCantidad(cantidad);
@@ -340,7 +365,7 @@ public class CarritoServiceImpl implements CarritoService {
     @Override
     public void removeProductFromCart(String userEmail, Long productoId) {
         UsuarioEntity usuario = usuarioRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new IllegalArgumentException("Usuario no existe"));
+                .orElseThrow(UsuarioNoEncontradoException::new);
 
         CarritoEntity carrito = carritoRepository
                 .findFirstByUsuarioIdAndEstadoOrderByActualizadoEnDesc(usuario.getId(), EstadoCarrito.ACTIVO)

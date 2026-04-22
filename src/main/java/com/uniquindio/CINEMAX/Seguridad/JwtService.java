@@ -18,31 +18,53 @@ import java.util.*;
 public class JwtService {
 
     private final SecretKey secretKey;
-    private final long expiresInSeconds;
+    private final long accessExpiresInSeconds;
+    private final long refreshExpiresInSeconds;
 
     public JwtService(
             @Value("${app.jwt.secret}") String secret,
-            @Value("${app.jwt.expires-in-seconds:3600}") long expiresInSeconds
+            @Value("${app.jwt.access-expires-in-seconds:900}") long accessExpiresInSeconds,
+            @Value("${app.jwt.refresh-expires-in-seconds:604800}") long refreshExpiresInSeconds
     ) {
-        // Validar que la clave secreta tenga al menos 32 caracteres para garantizar la seguridad del token
         if (secret == null || secret.trim().length() < 32) {
             throw new IllegalArgumentException("app.jwt.secret debe tener al menos 32 caracteres");
         }
         this.secretKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
-        this.expiresInSeconds = expiresInSeconds;
+        this.accessExpiresInSeconds = accessExpiresInSeconds;
+        this.refreshExpiresInSeconds = refreshExpiresInSeconds;
     }
 
-    public String generateToken(Long userId, String email, Set<String> roles) {
+    public String generateAccessToken(Long userId, String email, Set<String> roles) {
         Instant now = Instant.now();
-        Instant exp = now.plusSeconds(expiresInSeconds);
+        Instant exp = now.plusSeconds(accessExpiresInSeconds);
 
         Map<String, Object> claims = new HashMap<>();
         claims.put("uid", userId);
         claims.put("roles", roles == null ? List.of() : new ArrayList<>(roles));
+        claims.put("typ", "access");
 
         return Jwts.builder()
                 .setClaims(claims)
-                .setSubject(email)         // subject = email
+                .setId(UUID.randomUUID().toString())   // jti
+                .setSubject(email)
+                .setIssuedAt(Date.from(now))
+                .setExpiration(Date.from(exp))
+                .signWith(secretKey, SignatureAlgorithm.HS256)
+                .compact();
+    }
+
+    public String generateRefreshToken(Long userId, String email) {
+        Instant now = Instant.now();
+        Instant exp = now.plusSeconds(refreshExpiresInSeconds);
+
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("uid", userId);
+        claims.put("typ", "refresh");
+
+        return Jwts.builder()
+                .setClaims(claims)
+                .setId(UUID.randomUUID().toString())   // jti
+                .setSubject(email)
                 .setIssuedAt(Date.from(now))
                 .setExpiration(Date.from(exp))
                 .signWith(secretKey, SignatureAlgorithm.HS256)
@@ -56,6 +78,14 @@ public class JwtService {
         } catch (JwtException | IllegalArgumentException ex) {
             return false;
         }
+    }
+
+    public boolean isAccessToken(String token) {
+        return "access".equals(extractTokenType(token));
+    }
+
+    public boolean isRefreshToken(String token) {
+        return "refresh".equals(extractTokenType(token));
     }
 
     public String extractEmail(String token) {
@@ -85,7 +115,24 @@ public class JwtService {
         }
         return Set.of();
     }
-    // Método privado para parsear el token JWT y obtener todas las reclamaciones (claims) contenidas en él.
+
+    public String extractJti(String token) {
+        return parseAllClaims(token).getId();
+    }
+
+    public String extractTokenType(String token) {
+        Object typ = parseAllClaims(token).get("typ");
+        return typ == null ? null : String.valueOf(typ);
+    }
+
+    public long getAccessExpiresInSeconds() {
+        return accessExpiresInSeconds;
+    }
+
+    public long getRefreshExpiresInSeconds() {
+        return refreshExpiresInSeconds;
+    }
+
     private Claims parseAllClaims(String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(secretKey)

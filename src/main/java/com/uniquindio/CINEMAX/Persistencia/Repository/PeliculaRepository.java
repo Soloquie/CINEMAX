@@ -10,11 +10,11 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 /* Interfaz de repositorio que extiende JpaRepository para gestionar las operaciones de persistencia relacionadas con
-* las películas en el sistema CINEMAX. Proporciona métodos personalizados para buscar películas activas ordenadas
-* por título, realizar búsquedas avanzadas utilizando múltiples criterios como título, género y rango de fechas,
+ * las películas en el sistema CINEMAX. Proporciona métodos personalizados para buscar películas activas ordenadas
+ * por título, realizar búsquedas avanzadas utilizando múltiples criterios como título, género y rango de fechas,
  * y obtener próximas películas basadas en su fecha de estreno. Esto facilita la gestión de las películas disponibles
  * en el sistema, permitiendo realizar consultas específicas según las necesidades del negocio.
-   */
+ */
 public interface PeliculaRepository extends JpaRepository<PeliculaEntity, Long> {
     List<PeliculaEntity> findByActivaTrueOrderByTituloAsc();
 
@@ -60,4 +60,4 @@ public interface PeliculaRepository extends JpaRepository<PeliculaEntity, Long> 
     """)
     List<PeliculaEntity> findProximas(@Param("hoy") LocalDate hoy, @Param("hasta") LocalDate hasta);
 
-}
+}   

@@ -1,16 +1,19 @@
 package com.uniquindio.CINEMAX.negocio.Service.impl;
 
-import com.uniquindio.CINEMAX.Persistencia.Entity.RolEntity;
+import com.uniquindio.CINEMAX.Persistencia.DAO.RolDAO;
+import com.uniquindio.CINEMAX.Persistencia.DAO.TokenUsuarioDAO;
+import com.uniquindio.CINEMAX.Persistencia.DAO.UsuarioDAO;
+import com.uniquindio.CINEMAX.Persistencia.Entity.EstadoUsuario;
 import com.uniquindio.CINEMAX.Persistencia.Entity.TipoToken;
+import com.uniquindio.CINEMAX.Seguridad.JwtService;
 import com.uniquindio.CINEMAX.negocio.DTO.*;
+import com.uniquindio.CINEMAX.negocio.Exception.CredencialesInvalidasException;
+import com.uniquindio.CINEMAX.negocio.Exception.TokenExpiradoException;
+import com.uniquindio.CINEMAX.negocio.Exception.TokenInvalidoException;
 import com.uniquindio.CINEMAX.negocio.Model.Rol;
 import com.uniquindio.CINEMAX.negocio.Model.TokenUsuario;
-import com.uniquindio.CINEMAX.negocio.Service.EmailService;
-import com.uniquindio.CINEMAX.Persistencia.DAO.*;
-import com.uniquindio.CINEMAX.Persistencia.Entity.EstadoUsuario;
-import com.uniquindio.CINEMAX.Seguridad.JwtService;
 import com.uniquindio.CINEMAX.negocio.Model.Usuario;
-import com.uniquindio.CINEMAX.negocio.Service.impl.AuthServiceImpl;
+import com.uniquindio.CINEMAX.negocio.Service.EmailService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
@@ -25,6 +28,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class AuthServiceImplTest {
@@ -63,7 +67,7 @@ class AuthServiceImplTest {
         when(usuarioDAO.buscarPorEmail("test@test.com")).thenReturn(Optional.empty());
         when(passwordEncoder.matches(anyString(), anyString())).thenReturn(false);
 
-        assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(CredencialesInvalidasException.class, () -> {
             authService.login(request);
         });
 
@@ -96,9 +100,11 @@ class AuthServiceImplTest {
 
         when(passwordEncoder.matches("wrong", "hash")).thenReturn(false);
 
-        assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(CredencialesInvalidasException.class, () -> {
             authService.login(request);
         });
+
+        verify(usuarioDAO).guardar(any());
     }
 
     @Test
@@ -127,10 +133,26 @@ class AuthServiceImplTest {
 
         when(passwordEncoder.matches("123", "hash")).thenReturn(true);
 
-        when(jwtService.generateToken(any(), any(), any()))
-                .thenReturn("fake-jwt");
+        when(tokenUsuarioDAO.buscarActivosPorUsuarioYTipo(1L, TipoToken.REFRESH_TOKEN))
+                .thenReturn(List.of());
 
-        assertNotNull(authService.login(request));
+        when(jwtService.generateAccessToken(anyLong(), anyString(), anySet()))
+                .thenReturn("fake-access-jwt");
+
+        when(jwtService.generateRefreshToken(anyLong(), anyString()))
+                .thenReturn("fake-refresh-jwt");
+
+        when(jwtService.getAccessExpiresInSeconds()).thenReturn(900L);
+        when(jwtService.getRefreshExpiresInSeconds()).thenReturn(604800L);
+
+        AuthResponseDTO response = authService.login(request);
+
+        assertNotNull(response);
+        assertEquals("fake-access-jwt", response.accessToken());
+        assertEquals("fake-refresh-jwt", response.refreshToken());
+        assertEquals("Bearer", response.tokenType());
+        assertEquals(900L, response.expiresIn());
+        assertEquals(604800L, response.refreshExpiresIn());
     }
 
     @Test
@@ -139,7 +161,7 @@ class AuthServiceImplTest {
         RegisterRequestDTO request = new RegisterRequestDTO(
                 "Juan",
                 "Perez",
-                LocalDate.of(2000,1,1),
+                LocalDate.of(2000, 1, 1),
                 "test@test.com",
                 "3001234567",
                 "12345678"
@@ -147,7 +169,6 @@ class AuthServiceImplTest {
 
         when(usuarioDAO.existePorEmail("test@test.com")).thenReturn(false);
 
-        // MOCK DEL TIPO CORRECTO
         Rol rolMock = mock(Rol.class);
 
         when(rolDAO.buscarPorNombre("CLIENTE"))
@@ -156,14 +177,14 @@ class AuthServiceImplTest {
         when(passwordEncoder.encode(any())).thenReturn("hash");
 
         Usuario usuarioGuardado = new Usuario(
-                1L,"Juan","Perez",
-                LocalDate.of(2000,1,1),
-                "test@test.com","300",
-                "hash",false,
+                1L, "Juan", "Perez",
+                LocalDate.of(2000, 1, 1),
+                "test@test.com", "300",
+                "hash", false,
                 EstadoUsuario.ACTIVO,
                 null,
                 Set.of("CLIENTE"),
-                0,null
+                0, null
         );
 
         when(usuarioDAO.guardar(any())).thenReturn(usuarioGuardado);
@@ -193,7 +214,7 @@ class AuthServiceImplTest {
         );
 
         Usuario usuario = new Usuario(
-                1L,"Juan","Perez",
+                1L, "Juan", "Perez",
                 LocalDate.now(),
                 "test@test.com",
                 "300",
@@ -215,13 +236,34 @@ class AuthServiceImplTest {
     }
 
     @Test
+    void verifyEmailTokenExpirado() {
+        String tokenStr = "tokenExpirado";
+
+        VerifyEmailRequestDTO request = new VerifyEmailRequestDTO(tokenStr);
+
+        TokenUsuario token = new TokenUsuario(
+                1L,
+                1L,
+                tokenStr,
+                TipoToken.VERIFICAR_EMAIL,
+                LocalDateTime.now().minusMinutes(20),
+                LocalDateTime.now().minusMinutes(10),
+                null
+        );
+
+        when(tokenUsuarioDAO.buscarPorToken(tokenStr)).thenReturn(Optional.of(token));
+
+        assertThrows(TokenExpiradoException.class, () -> authService.verifyEmail(request));
+    }
+
+    @Test
     void forgotPasswordGeneraToken() {
 
         ForgotPasswordRequestDTO request =
                 new ForgotPasswordRequestDTO("test@test.com");
 
         Usuario usuario = new Usuario(
-                1L,"Juan","Perez",
+                1L, "Juan", "Perez",
                 LocalDate.now(),
                 "test@test.com",
                 "300",
@@ -237,7 +279,7 @@ class AuthServiceImplTest {
         when(usuarioDAO.buscarPorEmail("test@test.com"))
                 .thenReturn(Optional.of(usuario));
 
-        when(tokenUsuarioDAO.buscarActivosPorUsuarioYTipo(any(),any()))
+        when(tokenUsuarioDAO.buscarActivosPorUsuarioYTipo(any(), any()))
                 .thenReturn(List.of());
 
         when(tokenUsuarioDAO.guardar(any()))
@@ -245,7 +287,7 @@ class AuthServiceImplTest {
 
         assertNotNull(authService.forgotPassword(request));
 
-        verify(emailService).sendPasswordResetEmail(any(),any(),any());
+        verify(emailService).sendPasswordResetEmail(any(), any(), any());
     }
 
     @Test
@@ -254,7 +296,7 @@ class AuthServiceImplTest {
         String tokenStr = "tokenReset";
 
         ResetPasswordRequestDTO request =
-                new ResetPasswordRequestDTO(tokenStr,"nueva123");
+                new ResetPasswordRequestDTO(tokenStr, "nueva123");
 
         TokenUsuario token = new TokenUsuario(
                 1L,
@@ -267,7 +309,7 @@ class AuthServiceImplTest {
         );
 
         Usuario usuario = new Usuario(
-                1L,"Juan","Perez",
+                1L, "Juan", "Perez",
                 LocalDate.now(),
                 "test@test.com",
                 "300",
@@ -295,13 +337,26 @@ class AuthServiceImplTest {
     }
 
     @Test
+    void resetPasswordTokenInvalido() {
+        String tokenStr = "tokenInvalido";
+
+        ResetPasswordRequestDTO request =
+                new ResetPasswordRequestDTO(tokenStr, "nueva123");
+
+        when(tokenUsuarioDAO.buscarPorToken(tokenStr))
+                .thenReturn(Optional.empty());
+
+        assertThrows(TokenInvalidoException.class, () -> authService.resetPassword(request));
+    }
+
+    @Test
     void resendVerificationEnviaCorreo() {
 
         ResendVerificationDTO request =
                 new ResendVerificationDTO("test@test.com");
 
         Usuario usuario = new Usuario(
-                1L,"Juan","Perez",
+                1L, "Juan", "Perez",
                 LocalDate.now(),
                 "test@test.com",
                 "300",
@@ -317,7 +372,7 @@ class AuthServiceImplTest {
         when(usuarioDAO.buscarPorEmail("test@test.com"))
                 .thenReturn(Optional.of(usuario));
 
-        when(tokenUsuarioDAO.buscarActivosPorUsuarioYTipo(any(),any()))
+        when(tokenUsuarioDAO.buscarActivosPorUsuarioYTipo(any(), any()))
                 .thenReturn(List.of());
 
         when(tokenUsuarioDAO.guardar(any()))
@@ -325,6 +380,6 @@ class AuthServiceImplTest {
 
         assertNotNull(authService.resendVerification(request));
 
-        verify(emailService).sendVerificationEmail(any(),any(),any());
+        verify(emailService).sendVerificationEmail(any(), any(), any());
     }
 }

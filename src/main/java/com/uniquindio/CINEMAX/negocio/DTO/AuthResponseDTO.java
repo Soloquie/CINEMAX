@@ -4,9 +4,12 @@ package com.uniquindio.CINEMAX.negocio.DTO;
  * Este DTO se utiliza para enviar la información del token de acceso, tipo de token, tiempo de expiración y
  * resumen del usuario al cliente después de un proceso de autenticación exitoso.
  */
+
 public record AuthResponseDTO(
         String accessToken,
-        String tokenType,   // "Bearer"
-        long expiresIn,     // segundos
+        String refreshToken,
+        String tokenType,
+        long expiresIn,
+        long refreshExpiresIn,
         UserSummaryDTO user
 ) {}

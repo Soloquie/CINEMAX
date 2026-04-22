@@ -18,13 +18,20 @@ public class CatalogoController {
 
     private final CatalogoService catalogoService;
     /**
-     * Endpoint para listar los cines disponibles en el sistema, con opción de filtrado por ciudad.
+     * Endpoint para listar los cines disponibles en el sistema, con opción de filtrado por ciudad y paginación.
      * @param ciudad Parámetro de filtro opcional para listar solo los cines ubicados en una ciudad específica.
-     * @return Una lista de objetos CinePublicDTO que contienen la información de los cines disponibles, filtrados por ciudad si se proporciona el parámetro.
+     * @param page Número de página para la paginación (por defecto es 0).
+     * @param size Tamaño de página para la paginación (por defecto es 10).
+     * @return Un objeto Page que contiene una lista de objetos CinePublicDTO con la información de los cines disponibles,
+     * filtrados por ciudad si se proporciona el parámetro, junto con información de paginación.
      */
     @GetMapping("/cines")
-    public List<CinePublicDTO> listarCines(@RequestParam(required = false) String ciudad) {
-        return catalogoService.listarCines(ciudad);
+    public Page<CinePublicDTO> listarCines(
+            @RequestParam(required = false) String ciudad,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        return catalogoService.listarCines(ciudad, page, size);
     }
     /**
      * Endpoint para listar las salas de un cine específico.

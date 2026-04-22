@@ -4,6 +4,7 @@ import com.uniquindio.CINEMAX.Persistencia.DAO.PeliculaDAO;
 import com.uniquindio.CINEMAX.Persistencia.Mapper.PeliculaMapper;
 import com.uniquindio.CINEMAX.negocio.DTO.PeliculaResponseDTO;
 import com.uniquindio.CINEMAX.negocio.DTO.PeliculaUpsertFormDTO;
+import com.uniquindio.CINEMAX.negocio.Exception.PeliculaNoEncontradaException;
 import com.uniquindio.CINEMAX.negocio.Model.Pelicula;
 import com.uniquindio.CINEMAX.negocio.Service.CloudinaryService;
 import com.uniquindio.CINEMAX.negocio.Service.PeliculaService;
@@ -64,13 +65,13 @@ public class PeliculaServiceImpl implements PeliculaService {
      * sinopsis, duración, clasificación, fecha de estreno, estado de actividad y los IDs de los géneros asociados.
      * @return DTO de respuesta que representa la película actualizada, incluyendo su ID, título, sinopsis, duración,
      * clasificación, fecha de estreno, URL del cartel, estado de actividad y los géneros asociados.
-     * @throws IllegalArgumentException si la película con el ID proporcionado no existe en el sistema.
+     * @throws PeliculaNoEncontradaException si la película con el ID proporcionado no existe en el sistema.
      */
     @Override
     @Transactional
     public PeliculaResponseDTO actualizar(Long id, PeliculaUpsertFormDTO form) {
         Pelicula existente = peliculaDAO.buscarPorId(id)
-                .orElseThrow(() -> new IllegalArgumentException("Película no existe"));
+                .orElseThrow(PeliculaNoEncontradaException::new);
 
         String posterUrl = existente.posterUrl();
         String nuevoPoster = cloudinaryService.uploadPoster(form.getPoster());
@@ -94,10 +95,12 @@ public class PeliculaServiceImpl implements PeliculaService {
     /**
      * Elimina una película del sistema CINEMAX por su ID. Este método utiliza el DAO para eliminar la película de la base de datos.
      * @param id ID de la película que se desea eliminar. Debe ser un ID válido de una película existente en el sistema.
-     * @throws IllegalArgumentException si la película con el ID proporcionado no existe en el sistema.
+     * @throws PeliculaNoEncontradaException si la película con el ID proporcionado no existe en el sistema.
      */
     @Override
     public void eliminar(Long id) {
+        peliculaDAO.buscarPorId(id)
+                .orElseThrow(PeliculaNoEncontradaException::new);
         peliculaDAO.eliminar(id);
     }
     /**

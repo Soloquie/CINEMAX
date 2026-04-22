@@ -2,11 +2,16 @@ package com.uniquindio.CINEMAX.negocio.Service.impl;
 
 import com.uniquindio.CINEMAX.Persistencia.Repository.*;
 import com.uniquindio.CINEMAX.negocio.DTO.*;
+import com.uniquindio.CINEMAX.negocio.Exception.CineInactivoException;
+import com.uniquindio.CINEMAX.negocio.Exception.CineNoEncontradoException;
+import com.uniquindio.CINEMAX.negocio.Exception.FiltroInvalidoException;
+import com.uniquindio.CINEMAX.negocio.Exception.PeliculaNoEncontradaException;
 import com.uniquindio.CINEMAX.negocio.Service.CatalogoService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.uniquindio.CINEMAX.Persistencia.Entity.CineEntity;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -32,34 +37,40 @@ public class CatalogoServiceImpl implements CatalogoService {
      * Lista los cines activos, con opción de filtrar por ciudad. El resultado se ordena por ciudad y nombre.
      * @param ciudad filtro opcional para buscar cines por ciudad (mínimo 2 caracteres). Si es nulo o vacío,
      * se listan todos los cines activos.
-     * @return Lista de cines que cumplen con el filtro, cada uno representado como un CinePublicDTO.
+     * @param page número de página para la paginación (0-based). Debe ser un número entero no negativo.
+     * @param size tamaño de página para la paginación. Debe ser un número entero entre 1 y 50.
+     * @return Página de cines que cumplen con el filtro, cada uno representado como un CinePublicDTO.
+     * @throws FiltroInvalidoException si los parámetros de paginación son inválidos o si el filtro de ciudad es demasiado corto.
      */
     @Override
-    public java.util.List<CinePublicDTO> listarCines(String ciudad) {
+    public Page<CinePublicDTO> listarCines(String ciudad, int page, int size) {
+        if (page < 0) throw new FiltroInvalidoException("page no puede ser negativo.");
+        if (size < 1 || size > 50) throw new FiltroInvalidoException("size debe estar entre 1 y 50.");
         if (ciudad != null && !ciudad.isBlank() && ciudad.trim().length() < 2) {
-            throw new IllegalArgumentException("El filtro ciudad debe tener al menos 2 caracteres.");
+            throw new FiltroInvalidoException("El filtro ciudad debe tener al menos 2 caracteres.");
         }
 
-        var cines = (ciudad == null || ciudad.isBlank())
-                ? cineRepository.findByActivoTrueOrderByCiudadAscNombreAsc()
-                : cineRepository.findByActivoTrueAndCiudadContainingIgnoreCaseOrderByCiudadAscNombreAsc(ciudad.trim());
+        Pageable pageable = PageRequest.of(page, size, Sort.by("ciudad").ascending().and(Sort.by("nombre").ascending()));
 
-        return cines.stream()
-                .map(c -> new CinePublicDTO(c.getId(), c.getNombre(), c.getCiudad(), c.getDireccion()))
-                .toList();
+        Page<CineEntity> cines = (ciudad == null || ciudad.isBlank())
+                ? cineRepository.findByActivoTrue(pageable)
+                : cineRepository.findByActivoTrueAndCiudadContainingIgnoreCase(ciudad.trim(), pageable);
+
+        return cines.map(c -> new CinePublicDTO(c.getId(), c.getNombre(), c.getCiudad(), c.getDireccion()));
     }
     /**
      * Lista las salas activas de un cine específico, ordenadas por nombre. El cine debe existir y estar activo.
      * @param cineId ID del cine para el cual se desean listar las salas. Debe ser un ID válido de un cine activo.
      * @return Lista de salas que pertenecen al cine especificado, cada una representada como un SalaPublicDTO.
-     * @throws IllegalArgumentException si el cine no existe o está inactivo.
+     * @throws CineNoEncontradoException si el cine no existe.
+     * @throws CineInactivoException si el cine está inactivo.
      */
     @Override
     public java.util.List<SalaPublicDTO> listarSalasPorCine(Long cineId) {
         var cine = cineRepository.findById(cineId)
-                .orElseThrow(() -> new IllegalArgumentException("Cine no existe."));
+                .orElseThrow(CineNoEncontradoException::new);
         if (!Boolean.TRUE.equals(cine.getActivo())) {
-            throw new IllegalArgumentException("El cine está inactivo.");
+            throw new CineInactivoException();
         }
 
         return salaRepository.findByCineIdAndActivaTrueOrderByNombreAsc(cineId)
@@ -76,21 +87,21 @@ public class CatalogoServiceImpl implements CatalogoService {
      * @param page número de página para la paginación (0-based). Debe ser un número entero no negativo.
      * @param size tamaño de página para la paginación. Debe ser un número entero entre 1 y 50.
      * @return Página de películas que cumplen con los filtros especificados, cada una representada como un PeliculaCardDTO.
-     * @throws IllegalArgumentException si los parámetros de paginación son inválidos o si el filtro de título es demasiado corto.
+     * @throws FiltroInvalidoException si los parámetros de paginación son inválidos o si el filtro de título es demasiado corto.
      */
     @Override
     public Page<PeliculaCardDTO> listarPeliculas(String q, Long generoId, String desde, String hasta, int page, int size) {
         // Validaciones de calidad: filtros exactos y límites razonables
-        if (page < 0) throw new IllegalArgumentException("page no puede ser negativo.");
-        if (size < 1 || size > 50) throw new IllegalArgumentException("size debe estar entre 1 y 50.");
+        if (page < 0) throw new FiltroInvalidoException("page no puede ser negativo.");
+        if (size < 1 || size > 50) throw new FiltroInvalidoException("size debe estar entre 1 y 50.");
         if (q != null && !q.isBlank() && q.trim().length() < 2) {
-            throw new IllegalArgumentException("q debe tener al menos 2 caracteres.");
+            throw new FiltroInvalidoException("q debe tener al menos 2 caracteres.");
         }
 
         LocalDate d1 = (desde == null || desde.isBlank()) ? null : LocalDate.parse(desde);
         LocalDate d2 = (hasta == null || hasta.isBlank()) ? null : LocalDate.parse(hasta);
         if (d1 != null && d2 != null && d2.isBefore(d1)) {
-            throw new IllegalArgumentException("hasta no puede ser menor que desde.");
+            throw new FiltroInvalidoException("hasta no puede ser menor que desde.");
         }
 
         Pageable pageable = PageRequest.of(page, size, Sort.by("titulo").ascending());
@@ -117,12 +128,12 @@ public class CatalogoServiceImpl implements CatalogoService {
      * Obtiene el detalle completo de una película específica por su ID. La película debe existir y estar activa.
      * @param peliculaId ID de la película para la cual se desea obtener el detalle. Debe ser un ID válido de una película activa.
      * @return Detalle completo de la película, representado como un PeliculaDetailDTO, incluyendo sus géneros asociados.
-     * @throws IllegalArgumentException si la película no existe o está inactiva.
+     * @throws PeliculaNoEncontradaException si la película no existe.
      */
     @Override
     public PeliculaDetailDTO detallePelicula(Long peliculaId) {
         var p = peliculaRepository.findById(peliculaId)
-                .orElseThrow(() -> new IllegalArgumentException("Película no existe."));
+                .orElseThrow(PeliculaNoEncontradaException::new);
 
         Set<String> generos = (p.getGeneros() == null)
                 ? Set.of()
@@ -144,11 +155,11 @@ public class CatalogoServiceImpl implements CatalogoService {
      * Lista las películas que se estrenarán en los próximos días, con un límite máximo de 365 días. El resultado se ordena por fecha de estreno.
      * @param dias número de días a partir de hoy para buscar estrenos próximos. Debe ser un número entero entre 1 y 365.
      * @return Lista de películas que se estrenarán en los próximos días, cada una representada como un PeliculaCardDTO.
-     * @throws IllegalArgumentException si el número de días es inválido.
+     * @throws FiltroInvalidoException si el número de días es inválido.
      */
     @Override
     public java.util.List<PeliculaCardDTO> proximas(int dias) {
-        if (dias < 1 || dias > 365) throw new IllegalArgumentException("dias debe estar entre 1 y 365.");
+        if (dias < 1 || dias > 365) throw new FiltroInvalidoException("dias debe estar entre 1 y 365.");
 
         LocalDate hoy = LocalDate.now();
         LocalDate hasta = hoy.plusDays(dias);

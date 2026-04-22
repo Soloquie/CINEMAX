@@ -4,6 +4,9 @@ import com.uniquindio.CINEMAX.Persistencia.Entity.EstadoFuncion;
 import com.uniquindio.CINEMAX.Persistencia.Repository.CineRepository;
 import com.uniquindio.CINEMAX.Persistencia.Repository.FuncionRepository;
 import com.uniquindio.CINEMAX.negocio.DTO.FuncionPublicDTO;
+import com.uniquindio.CINEMAX.negocio.Exception.CineInactivoException;
+import com.uniquindio.CINEMAX.negocio.Exception.CineNoEncontradoException;
+import com.uniquindio.CINEMAX.negocio.Exception.FiltroInvalidoException;
 import com.uniquindio.CINEMAX.negocio.Service.FuncionesService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -32,11 +35,11 @@ public class FuncionesServiceImpl implements FuncionesService {
         LocalDateTime hasta;
 
         if (fecha == null) {
-            // ✅ sin fecha: traer todas las futuras
+
             desde = now;
             hasta = null;
         } else {
-            // ✅ con fecha: traer solo ese día
+
             LocalDate day = fecha;
 
             desde = day.atStartOfDay();
@@ -50,8 +53,8 @@ public class FuncionesServiceImpl implements FuncionesService {
 
         if (cineId != null) {
             var cine = cineRepository.findById(cineId)
-                    .orElseThrow(() -> new IllegalArgumentException("Cine no existe."));
-            if (!Boolean.TRUE.equals(cine.getActivo())) throw new IllegalArgumentException("Cine inactivo.");
+                    .orElseThrow(CineNoEncontradoException::new);
+            if (!Boolean.TRUE.equals(cine.getActivo())) throw new CineInactivoException("Cine inactivo.");
         }
 
         var list = funcionRepository.buscarFunciones(
@@ -82,7 +85,7 @@ public class FuncionesServiceImpl implements FuncionesService {
 
     @Override
     public List<FuncionPublicDTO> listarPorCine(Long cineId, LocalDate fecha) {
-        if (cineId == null) throw new IllegalArgumentException("cineId es requerido.");
+        if (cineId == null) throw new FiltroInvalidoException("cineId es requerido.");
         return listar(fecha, cineId, null);
     }
 }

@@ -3,6 +3,12 @@ package com.uniquindio.CINEMAX.negocio.Service.impl;
 import com.uniquindio.CINEMAX.Persistencia.Entity.*;
 import com.uniquindio.CINEMAX.Persistencia.Repository.*;
 import com.uniquindio.CINEMAX.negocio.DTO.*;
+import com.uniquindio.CINEMAX.negocio.Exception.CantidadInvalidaException;
+import com.uniquindio.CINEMAX.negocio.Exception.FiltroInvalidoException;
+import com.uniquindio.CINEMAX.negocio.Exception.InventarioNoEncontradoException;
+import com.uniquindio.CINEMAX.negocio.Exception.ProductoNoEncontradoException;
+import com.uniquindio.CINEMAX.negocio.Exception.SkuDuplicadoException;
+import com.uniquindio.CINEMAX.negocio.Exception.StockInsuficienteException;
 import com.uniquindio.CINEMAX.negocio.Service.CloudinaryService;
 import com.uniquindio.CINEMAX.negocio.Service.ConfiteriaService;
 import lombok.RequiredArgsConstructor;
@@ -29,8 +35,12 @@ public class ConfiteriaServiceImpl implements ConfiteriaService {
         if (categoria == null || categoria.isBlank()) {
             productos = productoRepository.findByActivoTrueOrderByNombreAsc();
         } else {
-            ProductoCategoria cat = ProductoCategoria.valueOf(categoria.trim().toUpperCase());
-            productos = productoRepository.findByActivoTrueAndCategoriaOrderByNombreAsc(cat);
+            try {
+                ProductoCategoria cat = ProductoCategoria.valueOf(categoria.trim().toUpperCase());
+                productos = productoRepository.findByActivoTrueAndCategoriaOrderByNombreAsc(cat);
+            } catch (IllegalArgumentException ex) {
+                throw new FiltroInvalidoException("La categoría proporcionada no es válida.");
+            }
         }
 
         return productos.stream()
@@ -47,7 +57,15 @@ public class ConfiteriaServiceImpl implements ConfiteriaService {
     @Override
     public ProductoAdminResponseDTO crear(ProductoUpsertFormDTO form) {
         if (productoRepository.existsBySku(form.getSku().trim())) {
-            throw new IllegalArgumentException("Ya existe un producto con ese SKU");
+            throw new SkuDuplicadoException();
+        }
+
+        if (form.getStock() < 0) {
+            throw new CantidadInvalidaException("El stock inicial no puede ser negativo.");
+        }
+
+        if (form.getStockMinimo() < 0) {
+            throw new CantidadInvalidaException("El stock mínimo no puede ser negativo.");
         }
 
         String imageUrl = cloudinaryService.uploadProductImage(form.getImagen());
@@ -88,7 +106,11 @@ public class ConfiteriaServiceImpl implements ConfiteriaService {
     @Override
     public ProductoAdminResponseDTO actualizar(Long id, ProductoUpsertFormDTO form) {
         ProductoEntity producto = productoRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Producto no existe"));
+                .orElseThrow(ProductoNoEncontradoException::new);
+
+        if (form.getStockMinimo() < 0) {
+            throw new CantidadInvalidaException("El stock mínimo no puede ser negativo.");
+        }
 
         producto.setSku(form.getSku().trim());
         producto.setNombre(form.getNombre().trim());
@@ -107,7 +129,7 @@ public class ConfiteriaServiceImpl implements ConfiteriaService {
         productoRepository.save(producto);
 
         InventarioEntity inventario = inventarioRepository.findById(id)
-                .orElseThrow(() -> new IllegalStateException("Inventario no existe para el producto"));
+                .orElseThrow(() -> new InventarioNoEncontradoException("Inventario no existe para el producto."));
 
         inventario.setStockMinimo(form.getStockMinimo());
         inventarioRepository.save(inventario);
@@ -118,7 +140,7 @@ public class ConfiteriaServiceImpl implements ConfiteriaService {
     @Override
     public void eliminar(Long id) {
         ProductoEntity producto = productoRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Producto no existe"));
+                .orElseThrow(ProductoNoEncontradoException::new);
         producto.setActivo(false);
         productoRepository.save(producto);
     }
@@ -126,12 +148,21 @@ public class ConfiteriaServiceImpl implements ConfiteriaService {
     @Override
     public ProductoAdminResponseDTO actualizarStock(Long id, ActualizarStockDTO dto) {
         ProductoEntity producto = productoRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Producto no existe"));
+                .orElseThrow(ProductoNoEncontradoException::new);
 
         InventarioEntity inventario = inventarioRepository.findById(id)
-                .orElseThrow(() -> new IllegalStateException("Inventario no existe"));
+                .orElseThrow(InventarioNoEncontradoException::new);
 
-        TipoMovimientoInventario tipo = TipoMovimientoInventario.valueOf(dto.tipo().trim().toUpperCase());
+        if (dto.cantidad() < 0) {
+            throw new CantidadInvalidaException("La cantidad no puede ser negativa.");
+        }
+
+        TipoMovimientoInventario tipo;
+        try {
+            tipo = TipoMovimientoInventario.valueOf(dto.tipo().trim().toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            throw new FiltroInvalidoException("El tipo de movimiento no es válido.");
+        }
 
         int stockActual = inventario.getStock();
         int nuevoStock = switch (tipo) {
@@ -141,7 +172,7 @@ public class ConfiteriaServiceImpl implements ConfiteriaService {
         };
 
         if (nuevoStock < 0) {
-            throw new IllegalStateException("No hay stock suficiente para realizar la operación");
+            throw new StockInsuficienteException("No hay stock suficiente para realizar la operación.");
         }
 
         inventario.setStock(nuevoStock);

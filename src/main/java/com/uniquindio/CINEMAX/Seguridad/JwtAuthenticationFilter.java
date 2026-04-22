@@ -60,8 +60,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         // Validamos el token JWT
-        if (!jwtService.isTokenValid(token)) {
-            // No seteamos auth; Security devolverá 401 en endpoints protegidos
+        if (!jwtService.isTokenValid(token) || !jwtService.isAccessToken(token)) {
             filterChain.doFilter(request, response);
             return;
         }

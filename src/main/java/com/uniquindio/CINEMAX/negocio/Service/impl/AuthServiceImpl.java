@@ -7,6 +7,7 @@ import com.uniquindio.CINEMAX.Persistencia.Entity.EstadoUsuario;
 import com.uniquindio.CINEMAX.Persistencia.Entity.TipoToken;
 import com.uniquindio.CINEMAX.Seguridad.JwtService;
 import com.uniquindio.CINEMAX.negocio.DTO.*;
+import com.uniquindio.CINEMAX.negocio.Exception.*;
 import com.uniquindio.CINEMAX.negocio.Model.TokenUsuario;
 import com.uniquindio.CINEMAX.negocio.Model.Usuario;
 import com.uniquindio.CINEMAX.negocio.Service.AuthService;
@@ -23,9 +24,11 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Set;
 import java.util.UUID;
+
 /**
  * Implementación de la interfaz AuthService para gestionar la autenticación y autorización en el sistema CINEMAX.
- * Esta clase maneja el registro, inicio de sesión, verificación de correo electrónico y restablecimiento de contraseña.
+ * Esta clase maneja el registro, inicio de sesión, verificación de correo electrónico, refresh token
+ * y restablecimiento de contraseña.
  * Utiliza DAOs para interactuar con la base de datos y servicios auxiliares para generar tokens JWT y enviar correos electrónicos.
  */
 @Service
@@ -52,20 +55,19 @@ public class AuthServiceImpl implements AuthService {
     @Value("${app.reset-password.token-minutes:30}")
     private long resetPasswordTokenMinutes;
 
-    @Value("${app.jwt.expires-in-seconds:3600}")
-    private long jwtExpiresInSeconds;
-
     @Value("${app.auth.max-failed-attempts:5}")
     private int maxFailedAttempts;
 
     @Value("${app.auth.lock-minutes:15}")
     private int lockMinutes;
+
     // Hash dummy para mitigar ataques de timing en el login
     private static final String DUMMY_HASH =
             "$2a$10$7EqJtq98hPqEX7fNZaFWoOhi5pWk0pZ5s6m0qOQ8bQ4b9v9l6y9yW";
 
-    /* Implementación del método de registro de usuarios. Valida la información, crea el usuario,
-     *genera un token de verificación y envía el correo.
+    /**
+     * Implementación del método de registro de usuarios. Valida la información, crea el usuario,
+     * genera un token de verificación y envía el correo.
      */
     @Override
     @Transactional
@@ -73,7 +75,7 @@ public class AuthServiceImpl implements AuthService {
         String email = normalizeEmail(request.email());
 
         if (usuarioDAO.existePorEmail(email)) {
-            throw new IllegalArgumentException("Ya existe un usuario registrado con ese email");
+            throw new EmailYaRegistradoException();
         }
 
         rolDAO.buscarPorNombre("CLIENTE")
@@ -105,11 +107,13 @@ public class AuthServiceImpl implements AuthService {
 
         return new MessageResponseDTO("Registro exitoso. Revisa tu correo para verificar la cuenta.");
     }
-    /* Implementación del método de inicio de sesión. Valida las credenciales, maneja bloqueos por intentos fallidos,
-     *verifica el estado del usuario y genera un token JWT si todo es correcto.
+
+    /**
+     * Implementación del método de inicio de sesión. Valida las credenciales, maneja bloqueos por intentos fallidos,
+     * verifica el estado del usuario y genera access token + refresh token si todo es correcto.
      */
     @Override
-    @Transactional(noRollbackFor = IllegalArgumentException.class)
+    @Transactional(noRollbackFor = RuntimeException.class)
     public AuthResponseDTO login(LoginRequestDTO request) {
         String email = normalizeEmail(request.email());
         LocalDateTime now = LocalDateTime.now();
@@ -118,19 +122,19 @@ public class AuthServiceImpl implements AuthService {
 
         if (usuario == null) {
             passwordEncoder.matches(request.password(), DUMMY_HASH);
-            throw new IllegalArgumentException("Credenciales inválidas");
+            throw new CredencialesInvalidasException();
         }
 
         if (usuario.estado() == EstadoUsuario.BLOQUEADO || usuario.estado() == EstadoUsuario.INACTIVO) {
-            throw new IllegalArgumentException("Usuario no habilitado para iniciar sesión");
+            throw new UsuarioNoHabilitadoException("Usuario no habilitado para iniciar sesión");
         }
 
         if (usuario.bloqueadoHasta() != null && usuario.bloqueadoHasta().isAfter(now)) {
-            throw new IllegalArgumentException("Cuenta temporalmente bloqueada. Intenta más tarde.");
+            throw new UsuarioNoHabilitadoException("Cuenta temporalmente bloqueada. Intenta más tarde.");
         }
 
         if (!usuario.emailVerificado()) {
-            throw new IllegalArgumentException("Debes verificar tu correo antes de iniciar sesión");
+            throw new UsuarioNoHabilitadoException("Debes verificar tu correo antes de iniciar sesión");
         }
 
         boolean ok = passwordEncoder.matches(request.password(), usuario.passwordHash());
@@ -143,6 +147,7 @@ public class AuthServiceImpl implements AuthService {
                 bloqueadoHasta = now.plusMinutes(lockMinutes);
                 intentos = 0; // opcional
             }
+
             // Actualizamos el usuario con los nuevos intentos y posible bloqueo
             Usuario actualizado = new Usuario(
                     usuario.id(),
@@ -161,8 +166,9 @@ public class AuthServiceImpl implements AuthService {
             );
             usuarioDAO.guardar(actualizado);
 
-            throw new IllegalArgumentException("Credenciales inválidas");
+            throw new CredencialesInvalidasException();
         }
+
         // Login exitoso: reseteamos intentos y bloqueos, actualizamos último login
         Usuario actualizadoOk = new Usuario(
                 usuario.id(),
@@ -181,7 +187,33 @@ public class AuthServiceImpl implements AuthService {
         );
         usuarioDAO.guardar(actualizadoOk);
 
-        String token = jwtService.generateToken(usuario.id(), usuario.email(), usuario.roles());
+        // Invalidar refresh tokens activos anteriores del usuario
+        tokenUsuarioDAO.buscarActivosPorUsuarioYTipo(usuario.id(), TipoToken.REFRESH_TOKEN)
+                .forEach(t -> tokenUsuarioDAO.guardar(new TokenUsuario(
+                        t.id(),
+                        t.usuarioId(),
+                        t.token(),
+                        t.tipo(),
+                        t.creadoEn(),
+                        t.expiraEn(),
+                        now
+                )));
+
+        String accessToken = jwtService.generateAccessToken(usuario.id(), usuario.email(), usuario.roles());
+        String refreshToken = jwtService.generateRefreshToken(usuario.id(), usuario.email());
+
+        LocalDateTime expiraRefresh = now.plusSeconds(jwtService.getRefreshExpiresInSeconds());
+
+        tokenUsuarioDAO.guardar(new TokenUsuario(
+                null,
+                usuario.id(),
+                refreshToken,
+                TipoToken.REFRESH_TOKEN,
+                now,
+                expiraRefresh,
+                null
+        ));
+
         // Construimos el DTO de resumen del usuario para incluir en la respuesta
         UserSummaryDTO userSummary = new UserSummaryDTO(
                 usuario.id(),
@@ -193,12 +225,98 @@ public class AuthServiceImpl implements AuthService {
                 usuario.roles()
         );
 
-        return new AuthResponseDTO(token, "Bearer", jwtExpiresInSeconds, userSummary);
+        return new AuthResponseDTO(
+                accessToken,
+                refreshToken,
+                "Bearer",
+                jwtService.getAccessExpiresInSeconds(),
+                jwtService.getRefreshExpiresInSeconds(),
+                userSummary
+        );
+    }
+
+    /**
+     * Implementación del refresh token. Valida el refresh token recibido,
+     * verifica que no esté usado ni expirado, lo rota y genera nuevos tokens.
+     */
+    @Override
+    @Transactional
+    public AuthResponseDTO refreshToken(RefreshTokenRequestDTO request) {
+        String refreshToken = request.refreshToken().trim();
+        LocalDateTime now = LocalDateTime.now();
+
+        if (!jwtService.isTokenValid(refreshToken) || !jwtService.isRefreshToken(refreshToken)) {
+            throw new TokenInvalidoException("Refresh token inválido");
+        }
+
+        TokenUsuario tokenGuardado = tokenUsuarioDAO.buscarPorToken(refreshToken)
+                .orElseThrow(() -> new TokenInvalidoException("Refresh token no reconocido"));
+
+        if (tokenGuardado.usadoEn() != null) {
+            throw new TokenInvalidoException("Refresh token ya utilizado");
+        }
+
+        if (tokenGuardado.expiraEn().isBefore(now)) {
+            throw new TokenExpiradoException("Refresh token expirado");
+        }
+
+        if (tokenGuardado.tipo() != TipoToken.REFRESH_TOKEN) {
+            throw new TokenInvalidoException("Tipo de token inválido");
+        }
+
+        Usuario usuario = usuarioDAO.buscarPorId(tokenGuardado.usuarioId())
+                .orElseThrow(UsuarioNoEncontradoException::new);
+
+        // invalidar refresh actual (rotación)
+        tokenUsuarioDAO.guardar(new TokenUsuario(
+                tokenGuardado.id(),
+                tokenGuardado.usuarioId(),
+                tokenGuardado.token(),
+                tokenGuardado.tipo(),
+                tokenGuardado.creadoEn(),
+                tokenGuardado.expiraEn(),
+                now
+        ));
+
+        String newAccessToken = jwtService.generateAccessToken(usuario.id(), usuario.email(), usuario.roles());
+        String newRefreshToken = jwtService.generateRefreshToken(usuario.id(), usuario.email());
+
+        LocalDateTime expiraRefresh = now.plusSeconds(jwtService.getRefreshExpiresInSeconds());
+
+        tokenUsuarioDAO.guardar(new TokenUsuario(
+                null,
+                usuario.id(),
+                newRefreshToken,
+                TipoToken.REFRESH_TOKEN,
+                now,
+                expiraRefresh,
+                null
+        ));
+
+        UserSummaryDTO userSummary = new UserSummaryDTO(
+                usuario.id(),
+                usuario.nombre(),
+                usuario.apellido(),
+                usuario.email(),
+                usuario.emailVerificado(),
+                usuario.estado().name(),
+                usuario.roles()
+        );
+
+        return new AuthResponseDTO(
+                newAccessToken,
+                newRefreshToken,
+                "Bearer",
+                jwtService.getAccessExpiresInSeconds(),
+                jwtService.getRefreshExpiresInSeconds(),
+                userSummary
+        );
     }
 
     /**
      * Implementación del método de verificación de correo electrónico. Valida el token,
-     * verifica que no haya sido usado o expirado,
+     * verifica que no haya sido usado o expirado.
+     *
      * @param request DTO que contiene el token de verificación enviado al correo del usuario.
      * @return MessageResponseDTO con el resultado de la verificación, indicando si fue exitosa
      * o si el correo ya estaba verificado.
@@ -210,26 +328,27 @@ public class AuthServiceImpl implements AuthService {
         LocalDateTime now = LocalDateTime.now();
 
         TokenUsuario token = tokenUsuarioDAO.buscarPorToken(tokenStr)
-                .orElseThrow(() -> new IllegalArgumentException("Token inválido"));
+                .orElseThrow(TokenInvalidoException::new);
 
         if (token.usadoEn() != null) {
-            throw new IllegalArgumentException("Este token ya fue utilizado");
+            throw new TokenInvalidoException("Este token ya fue utilizado");
         }
 
         if (token.expiraEn().isBefore(now)) {
-            throw new IllegalArgumentException("El token ha expirado");
+            throw new TokenExpiradoException();
         }
 
         if (token.tipo() != TipoToken.VERIFICAR_EMAIL) {
-            throw new IllegalArgumentException("Tipo de token no válido para verificación");
+            throw new TokenInvalidoException("Tipo de token no válido para verificación");
         }
 
         Usuario usuario = usuarioDAO.buscarPorId(token.usuarioId())
-                .orElseThrow(() -> new IllegalStateException("Usuario asociado al token no existe"));
+                .orElseThrow(UsuarioNoEncontradoException::new);
 
         if (usuario.emailVerificado()) {
             return new MessageResponseDTO("Tu correo ya estaba verificado.");
         }
+
         // Actualizamos el usuario para marcar el correo como verificado
         Usuario actualizado = new Usuario(
                 usuario.id(),
@@ -257,8 +376,8 @@ public class AuthServiceImpl implements AuthService {
 
     /**
      * Implementación del método para reenviar el correo de verificación. Busca el usuario por email, verifica su estado
-     * y si el correo no está verificado, invalida los tokens anteriores
-     * y envía un nuevo correo con un nuevo token de verificación.
+     * y si el correo no está verificado, invalida los tokens anteriores y envía un nuevo correo con un nuevo token de verificación.
+     *
      * @param request DTO que contiene el email del usuario para el cual se desea reenviar el correo de verificación.
      * @return MessageResponseDTO indicando que se ha reenviado el correo de verificación.
      */
@@ -267,7 +386,7 @@ public class AuthServiceImpl implements AuthService {
     public MessageResponseDTO resendVerification(ResendVerificationDTO request) {
         String email = normalizeEmail(request.email());
         Usuario usuario = usuarioDAO.buscarPorEmail(email)
-                .orElseThrow(() -> new IllegalArgumentException("No existe un usuario con ese email"));
+                .orElseThrow(UsuarioNoEncontradoException::new);
 
         if (usuario.emailVerificado()) {
             return new MessageResponseDTO("Tu correo ya está verificado. Inicia sesión.");
@@ -278,6 +397,7 @@ public class AuthServiceImpl implements AuthService {
                 .forEach(t -> tokenUsuarioDAO.guardar(new TokenUsuario(
                         t.id(), t.usuarioId(), t.token(), t.tipo(), t.creadoEn(), t.expiraEn(), now
                 )));
+
         // Creamos un nuevo token de verificación y lo guardamos
         TokenUsuario nuevoToken = crearTokenVerificacion(usuario.id());
         TokenUsuario guardado = tokenUsuarioDAO.guardar(nuevoToken);
@@ -291,6 +411,7 @@ public class AuthServiceImpl implements AuthService {
     /**
      * Implementación del método para iniciar el proceso de recuperación de contraseña. Busca el usuario por email,
      * y si existe, invalida los tokens de reset anteriores, crea un nuevo token de reset y envía un correo con el enlace.
+     *
      * @param request DTO que contiene el email del usuario que ha olvidado su contraseña.
      * @return MessageResponseDTO indicando que se ha enviado un enlace de recuperación si el correo existe.
      */
@@ -331,8 +452,11 @@ public class AuthServiceImpl implements AuthService {
 
         return new MessageResponseDTO("Si el correo existe, enviaremos un enlace de recuperación.");
     }
-    /* Implementación del método para restablecer la contraseña. Valida el token, verifica que no haya sido usado o expirado,
+
+    /**
+     * Implementación del método para restablecer la contraseña. Valida el token, verifica que no haya sido usado o expirado,
      * y si es válido, actualiza la contraseña del usuario y marca el token como usado.
+     *
      * @param request DTO que contiene el token de reset y la nueva contraseña.
      * @return MessageResponseDTO indicando que la contraseña se ha actualizado correctamente.
      */
@@ -343,14 +467,14 @@ public class AuthServiceImpl implements AuthService {
         LocalDateTime now = LocalDateTime.now();
 
         TokenUsuario token = tokenUsuarioDAO.buscarPorToken(tokenStr)
-                .orElseThrow(() -> new IllegalArgumentException("Token inválido"));
+                .orElseThrow(TokenInvalidoException::new);
 
-        if (token.usadoEn() != null) throw new IllegalArgumentException("Token ya utilizado");
-        if (token.expiraEn().isBefore(now)) throw new IllegalArgumentException("Token expirado");
-        if (token.tipo() != TipoToken.RESET_PASSWORD) throw new IllegalArgumentException("Token no válido para reset");
+        if (token.usadoEn() != null) throw new TokenInvalidoException("Token ya utilizado");
+        if (token.expiraEn().isBefore(now)) throw new TokenExpiradoException("Token expirado");
+        if (token.tipo() != TipoToken.RESET_PASSWORD) throw new TokenInvalidoException("Token no válido para reset");
 
         Usuario usuario = usuarioDAO.buscarPorId(token.usuarioId())
-                .orElseThrow(() -> new IllegalStateException("Usuario asociado al token no existe"));
+                .orElseThrow(UsuarioNoEncontradoException::new);
 
         Usuario actualizado = new Usuario(
                 usuario.id(),
@@ -376,7 +500,10 @@ public class AuthServiceImpl implements AuthService {
         return new MessageResponseDTO("Contraseña actualizada correctamente.");
     }
 
-    /* Método auxiliar para crear un token de verificación de correo electrónico. Genera un token único, establece su tipo y fecha de expiración.
+    /**
+     * Método auxiliar para crear un token de verificación de correo electrónico.
+     * Genera un token único, establece su tipo y fecha de expiración.
+     *
      * @param usuarioId ID del usuario para el cual se crea el token.
      * @return TokenUsuario con la información del token creado.
      */
