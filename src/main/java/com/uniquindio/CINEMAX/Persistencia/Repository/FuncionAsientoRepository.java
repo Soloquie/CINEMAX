@@ -63,4 +63,12 @@ public interface FuncionAsientoRepository extends JpaRepository<FuncionAsientoEn
              and fa.retenidoPor.id = :usuarioId
            """)
     int liberarPorUsuario(@Param("funcionId") Long funcionId, @Param("ids") List<Long> ids, @Param("usuarioId") Long usuarioId);
+
+    @Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+    select fa
+    from FuncionAsientoEntity fa
+    where fa.id in :ids
+""")
+    List<FuncionAsientoEntity> findAllByIdInForUpdate(@Param("ids") List<Long> ids);
 }
