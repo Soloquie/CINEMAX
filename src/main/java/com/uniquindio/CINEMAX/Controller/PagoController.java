@@ -1,12 +1,14 @@
 package com.uniquindio.CINEMAX.Controller;
 
-import com.uniquindio.CINEMAX.negocio.DTO.CheckoutPagoResponseDTO;
+import com.uniquindio.CINEMAX.negocio.DTO.MercadoPagoCheckoutResponseDTO;
 import com.uniquindio.CINEMAX.negocio.DTO.PagoEstadoResponseDTO;
-import com.uniquindio.CINEMAX.negocio.DTO.WompiWebhookDTO;
 import com.uniquindio.CINEMAX.negocio.Service.PagoService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
+
 /**
  * Controlador REST para gestionar el flujo de pagos en el sistema CINEMAX.
  * Proporciona endpoints para crear checkout, consultar estado de pago y recibir webhooks del proveedor externo.
@@ -22,7 +24,7 @@ public class PagoController {
      * Endpoint para crear un checkout de pago a partir del carrito activo del usuario autenticado.
      */
     @PostMapping("/checkout")
-    public CheckoutPagoResponseDTO crearCheckout(Authentication auth) {
+    public MercadoPagoCheckoutResponseDTO crearCheckout(Authentication auth) {
         return pagoService.crearCheckout(auth.getName());
     }
 
@@ -38,10 +40,14 @@ public class PagoController {
     }
 
     /**
-     * Endpoint público para recibir eventos webhook enviados por Wompi.
+     * Endpoint público para recibir eventos webhook enviados por Mercado Pago.
+     * Mercado Pago puede enviar información tanto en el body como en parámetros de la URL.
      */
-    @PostMapping("/webhook/wompi")
-    public void webhookWompi(@RequestBody WompiWebhookDTO webhook) {
-        pagoService.procesarWebhookWompi(webhook);
+    @PostMapping("/webhook/mercado-pago")
+    public void webhookMercadoPago(
+            @RequestBody(required = false) Map<String, Object> body,
+            @RequestParam Map<String, String> params
+    ) {
+        pagoService.procesarWebhookMercadoPago(body, params);
     }
 }

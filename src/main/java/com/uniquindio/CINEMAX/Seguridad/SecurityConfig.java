@@ -56,7 +56,7 @@ public class SecurityConfig {
                                 "/api/generos",
                                 "/api/confiteria/**"
                         ).permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/pagos/webhook/wompi").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/pagos/webhook/mercado-pago").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);

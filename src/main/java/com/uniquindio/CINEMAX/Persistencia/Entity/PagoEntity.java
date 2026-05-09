@@ -81,4 +81,10 @@ public class PagoEntity {
     @UpdateTimestamp
     @Column(name = "actualizado_en")
     private LocalDateTime actualizadoEn;
+
+    @Column(name = "provider_preference_id", length = 120)
+    private String providerPreferenceId;
+
+    @Column(name = "provider_payment_id", length = 120)
+    private String providerPaymentId;
 }
