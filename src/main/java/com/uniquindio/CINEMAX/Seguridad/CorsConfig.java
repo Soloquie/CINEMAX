@@ -1,42 +1,44 @@
 package com.uniquindio.CINEMAX.Seguridad;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.beans.factory.annotation.Value;
+
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
 import java.util.List;
-/* Configuración de CORS para permitir solicitudes desde el frontend (Angular) hacia el backend (Spring Boot).
- * Esta clase define una configuración de CORS personalizada que especifica los orígenes permitidos, los métodos HTTP permitidos,
- * los encabezados permitidos y si se permiten las credenciales. Esto es esencial para habilitar la comunicación
- *  entre el frontend y el backend sin problemas,  especialmente cuando están alojados en dominios diferentes
- *  durante el desarrollo.
-   */
+
+/*
+ * Configuración CORS global para permitir que el frontend desplegado pueda consumir la API.
+ */
 @Configuration
 public class CorsConfig {
 
-    @Value("${app.cors.allowed-origins:http://localhost:4200}")
+    @Value("${app.cors.allowed-origin:http://localhost:4200}")
     private String allowedOrigins;
+
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration config = new CorsConfiguration();
+        CorsConfiguration configuration = new CorsConfiguration();
 
         List<String> origins = Arrays.stream(allowedOrigins.split(","))
                 .map(String::trim)
-                .filter(s -> !s.isBlank())
+                .filter(origin -> !origin.isBlank())
                 .toList();
 
-        config.setAllowedOrigins(origins);
-        config.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
-        config.setAllowedHeaders(List.of("Authorization","Content-Type","Accept"));
-        config.setExposedHeaders(List.of("Authorization"));
-        config.setAllowCredentials(true);
+        configuration.setAllowedOrigins(origins);
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "Origin"));
+        configuration.setExposedHeaders(List.of("Authorization"));
+        configuration.setAllowCredentials(false);
+        configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", config);
+        source.registerCorsConfiguration("/**", configuration);
+
         return source;
     }
 }
