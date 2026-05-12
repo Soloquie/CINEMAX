@@ -33,16 +33,36 @@ jobs:
         run: chmod +x mvnw
 
       - name: Build backend
-        run: ./mvnw clean package -DskipTests
+        run: |
+          chmod +x mvnw
+          ./mvnw clean package -DskipTests
+          echo "Contenido después del build:"
+          find . -type f -path "*/target/*.jar"
 
       - name: Prepare Elastic Beanstalk source bundle
         run: |
+          echo "Buscando el JAR generado..."
+          find . -type f -path "*/target/*.jar"
+
+          JAR_FILE=$(find . -type f -path "*/target/*.jar" ! -name "*sources.jar" ! -name "*javadoc.jar" | head -n 1)
+
+          if [ -z "$JAR_FILE" ]; then
+            echo "No se encontró ningún archivo .jar generado por Maven."
+            echo "Contenido del proyecto:"
+            ls -la
+            echo "Carpetas target encontradas:"
+            find . -type d -name "target"
+            exit 1
+          fi
+
+          echo "JAR encontrado: $JAR_FILE"
+
           mkdir -p deploy
-          cp target/*.jar deploy/application.jar
+          cp "$JAR_FILE" deploy/application.jar
           echo "web: java -jar application.jar" > deploy/Procfile
+
           cd deploy
           zip -r ../cinemax-backend.zip .
-
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
