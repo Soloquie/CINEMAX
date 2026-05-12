@@ -301,4 +301,23 @@ public class VentaServiceImpl implements VentaService {
     private String generarCodigoBoleta() {
         return "BOL-CINEMAX-" + System.currentTimeMillis() + "-" + UUID.randomUUID().toString().substring(0, 6).toUpperCase();
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<CompraResumenDTO> listarMisCompras(String userEmail) {
+        UsuarioEntity usuario = usuarioRepository.findByEmail(userEmail)
+                .orElseThrow(UsuarioNoEncontradoException::new);
+
+        return ventaRepository.findMisComprasByUsuarioEmail(usuario.getEmail())
+                .stream()
+                .map(v -> new CompraResumenDTO(
+                        v.getId(),
+                        v.getCodigo(),
+                        v.getEstado().name(),
+                        v.getTotal(),
+                        v.getPago() != null ? v.getPago().getReferencia() : null,
+                        v.getPago() != null ? v.getPago().getEstado().name() : null
+                ))
+                .toList();
+    }
 }

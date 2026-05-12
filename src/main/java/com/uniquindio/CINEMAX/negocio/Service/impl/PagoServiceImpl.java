@@ -2,17 +2,18 @@ package com.uniquindio.CINEMAX.negocio.Service.impl;
 
 import com.mercadopago.resources.payment.Payment;
 import com.uniquindio.CINEMAX.config.MercadoPagoProperties;
+import com.uniquindio.CINEMAX.config.StripeProperties;
 import com.uniquindio.CINEMAX.Persistencia.Entity.*;
 import com.uniquindio.CINEMAX.Persistencia.Repository.*;
-import com.uniquindio.CINEMAX.negocio.DTO.MercadoPagoCheckoutResponseDTO;
-import com.uniquindio.CINEMAX.negocio.DTO.MercadoPagoPreferenceDataDTO;
-import com.uniquindio.CINEMAX.negocio.DTO.PagoEstadoResponseDTO;
+import com.uniquindio.CINEMAX.negocio.DTO.*;
 import com.uniquindio.CINEMAX.negocio.Exception.CarritoInvalidoException;
 import com.uniquindio.CINEMAX.negocio.Exception.ConfiteriaNoPermitidaSinBoletaException;
+import com.uniquindio.CINEMAX.negocio.Exception.PagoInvalidoException;
 import com.uniquindio.CINEMAX.negocio.Exception.PagoNoEncontradoException;
 import com.uniquindio.CINEMAX.negocio.Exception.UsuarioNoEncontradoException;
 import com.uniquindio.CINEMAX.negocio.Service.MercadoPagoService;
 import com.uniquindio.CINEMAX.negocio.Service.PagoService;
+import com.uniquindio.CINEMAX.negocio.Service.StripeService;
 import com.uniquindio.CINEMAX.negocio.Service.VentaService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -27,7 +28,7 @@ import java.util.UUID;
 
 /**
  * Implementación de la interfaz PagoService para gestionar el inicio y seguimiento de pagos en CINEMAX.
- * Esta clase crea pagos pendientes desde el carrito del usuario, genera la preferencia de Mercado Pago
+ * Esta clase crea pagos pendientes desde el carrito del usuario, genera checkout con Mercado Pago o Stripe
  * y procesa los eventos webhook para confirmar la venta de forma transaccional.
  */
 @Service
@@ -41,16 +42,22 @@ public class PagoServiceImpl implements PagoService {
     private final PagoRepository pagoRepository;
     private final PagoEventoRepository pagoEventoRepository;
     private final VentaRepository ventaRepository;
+
     private final MercadoPagoService mercadoPagoService;
     private final MercadoPagoProperties mercadoPagoProperties;
+
+    private final StripeService stripeService;
+    private final StripeProperties stripeProperties;
+
     private final VentaService ventaService;
 
     /**
      * Crea un checkout de pago a partir del carrito activo del usuario autenticado.
      * El total se calcula en backend para evitar manipulación desde el frontend.
+     * El proveedor puede ser MERCADO_PAGO o STRIPE.
      */
     @Override
-    public MercadoPagoCheckoutResponseDTO crearCheckout(String userEmail) {
+    public CheckoutPagoResponseDTO crearCheckout(String userEmail, CrearCheckoutPagoRequestDTO request) {
         UsuarioEntity usuario = usuarioRepository.findByEmail(userEmail)
                 .orElseThrow(UsuarioNoEncontradoException::new);
 
@@ -75,6 +82,8 @@ public class PagoServiceImpl implements PagoService {
 
         validarHoldsVigentes(items);
 
+        ProveedorPago proveedor = resolverProveedor(request);
+
         BigDecimal total = calcularTotal(items);
 
         Long montoCentavos = total
@@ -86,7 +95,7 @@ public class PagoServiceImpl implements PagoService {
                 .usuario(usuario)
                 .carrito(carrito)
                 .referencia(generarReferencia(usuario.getId()))
-                .proveedor(ProveedorPago.MERCADO_PAGO)
+                .proveedor(proveedor)
                 .monto(total)
                 .montoCentavos(montoCentavos)
                 .moneda("COP")
@@ -95,18 +104,51 @@ public class PagoServiceImpl implements PagoService {
 
         PagoEntity saved = pagoRepository.save(pago);
 
-        MercadoPagoPreferenceDataDTO preference = mercadoPagoService.crearPreferencia(saved);
+        return switch (proveedor) {
+            case MERCADO_PAGO -> crearCheckoutMercadoPago(saved);
+            case STRIPE -> crearCheckoutStripe(saved);
+        };
+    }
 
-        saved.setProviderPreferenceId(preference.preferenceId());
-        pagoRepository.save(saved);
+    /**
+     * Crea la preferencia de Mercado Pago y devuelve la URL de redirección al frontend.
+     */
+    private CheckoutPagoResponseDTO crearCheckoutMercadoPago(PagoEntity pago) {
+        MercadoPagoPreferenceDataDTO preference = mercadoPagoService.crearPreferencia(pago);
 
-        String initPoint = resolverInitPoint(preference);
+        pago.setProviderPreferenceId(preference.preferenceId());
+        pagoRepository.save(pago);
 
-        return new MercadoPagoCheckoutResponseDTO(
-                saved.getReferencia(),
+        String initPoint = resolverInitPointMercadoPago(preference);
+
+        return new CheckoutPagoResponseDTO(
+                pago.getReferencia(),
+                pago.getProveedor().name(),
+                pago.getMontoCentavos(),
+                pago.getMoneda(),
                 preference.preferenceId(),
                 initPoint,
                 mercadoPagoProperties.getPublicKey()
+        );
+    }
+
+    /**
+     * Crea la sesión de Stripe Checkout y devuelve la URL de redirección al frontend.
+     */
+    private CheckoutPagoResponseDTO crearCheckoutStripe(PagoEntity pago) {
+        StripeCheckoutDataDTO session = stripeService.crearSesionCheckout(pago);
+
+        pago.setProviderPreferenceId(session.sessionId());
+        pagoRepository.save(pago);
+
+        return new CheckoutPagoResponseDTO(
+                pago.getReferencia(),
+                pago.getProveedor().name(),
+                pago.getMontoCentavos(),
+                pago.getMoneda(),
+                session.sessionId(),
+                session.url(),
+                stripeProperties.getPublicKey()
         );
     }
 
@@ -145,7 +187,7 @@ public class PagoServiceImpl implements PagoService {
     @Override
     public void procesarWebhookMercadoPago(Map<String, Object> body, Map<String, String> params) {
         String paymentId = mercadoPagoService.extraerPaymentId(body, params);
-        String eventType = extraerEventType(body, params);
+        String eventType = extraerEventTypeMercadoPago(body, params);
 
         if (paymentId == null || paymentId.isBlank()) {
             pagoEventoRepository.save(PagoEventoEntity.builder()
@@ -192,7 +234,7 @@ public class PagoServiceImpl implements PagoService {
             return;
         }
 
-        if (esPagoRechazado(normalizedStatus)) {
+        if (esPagoRechazadoMercadoPago(normalizedStatus)) {
             pago.setEstado(EstadoPago.RECHAZADO);
             pago.setMensajeError("Pago rechazado o cancelado por Mercado Pago.");
             pagoRepository.save(pago);
@@ -204,7 +246,88 @@ public class PagoServiceImpl implements PagoService {
     }
 
     /**
-     * Procesa un pago aprobado evitando duplicar ventas si Mercado Pago reintenta el webhook.
+     * Procesa un evento webhook recibido desde Stripe.
+     * El evento principal para confirmar la compra es checkout.session.completed.
+     */
+    @Override
+    public void procesarWebhookStripe(String payload, String signature) {
+        StripeWebhookDataDTO webhookData = stripeService.procesarWebhook(payload, signature);
+
+        String eventType = webhookData.eventType() == null
+                ? ""
+                : webhookData.eventType().trim().toLowerCase();
+
+        String paymentStatus = webhookData.paymentStatus() == null
+                ? ""
+                : webhookData.paymentStatus().trim().toLowerCase();
+
+        /*
+         * Eventos secundarios de Stripe:
+         * charge.succeeded, payment_intent.succeeded, payment_intent.created, charge.updated, etc.
+         * Se reciben correctamente, pero no se procesan en CINEMAX.
+         */
+        if (!"checkout.session.completed".equals(eventType)
+                && !"checkout.session.expired".equals(eventType)) {
+            return;
+        }
+
+        PagoEntity pago = buscarPagoStripe(webhookData);
+
+        if (pago == null) {
+            return;
+        }
+
+        pagoEventoRepository.save(PagoEventoEntity.builder()
+                .pago(pago)
+                .proveedor(ProveedorPago.STRIPE.name())
+                .eventType(webhookData.eventType())
+                .transactionId(webhookData.sessionId())
+                .estadoTransaccion(webhookData.paymentStatus())
+                .payloadJson(payload)
+                .build());
+
+        if (webhookData.sessionId() != null && pago.getProviderPreferenceId() == null) {
+            pago.setProviderPreferenceId(webhookData.sessionId());
+        }
+
+        if (webhookData.paymentIntentId() != null) {
+            pago.setProviderPaymentId(webhookData.paymentIntentId());
+        }
+
+        if ("checkout.session.completed".equals(eventType)) {
+
+            if (!"paid".equals(paymentStatus) && !"complete".equals(paymentStatus)) {
+                return;
+            }
+
+            procesarPagoAprobado(pago);
+            return;
+        }
+
+        if ("checkout.session.expired".equals(eventType)) {
+            pago.setEstado(EstadoPago.RECHAZADO);
+            pago.setMensajeError("La sesión de pago de Stripe expiró.");
+            pagoRepository.save(pago);
+        }
+    }
+
+    /**
+     * Busca el pago asociado al webhook de Stripe usando primero la referencia interna y luego el ID de sesión.
+     */
+    private PagoEntity buscarPagoStripe(StripeWebhookDataDTO webhookData) {
+        if (webhookData.referencia() != null && !webhookData.referencia().isBlank()) {
+            return pagoRepository.findByReferencia(webhookData.referencia()).orElse(null);
+        }
+
+        if (webhookData.sessionId() != null && !webhookData.sessionId().isBlank()) {
+            return pagoRepository.findByProviderPreferenceId(webhookData.sessionId()).orElse(null);
+        }
+
+        return null;
+    }
+
+    /**
+     * Procesa un pago aprobado evitando duplicar ventas si el proveedor reintenta el webhook.
      */
     private void procesarPagoAprobado(PagoEntity pago) {
         if (pago.getEstado() == EstadoPago.CONFIRMADO) {
@@ -227,6 +350,12 @@ public class PagoServiceImpl implements PagoService {
 
         try {
             ventaService.confirmarVentaDesdePago(pago.getReferencia());
+
+            pago.setEstado(EstadoPago.CONFIRMADO);
+            pago.setConfirmadoEn(LocalDateTime.now());
+            pago.setMensajeError(null);
+            pagoRepository.save(pago);
+
         } catch (RuntimeException ex) {
             pago.setEstado(EstadoPago.FALLIDO_CONFIRMACION);
             pago.setMensajeError(ex.getMessage());
@@ -234,7 +363,19 @@ public class PagoServiceImpl implements PagoService {
         }
     }
 
-    private boolean esPagoRechazado(String status) {
+    private ProveedorPago resolverProveedor(CrearCheckoutPagoRequestDTO request) {
+        if (request == null || request.proveedor() == null || request.proveedor().isBlank()) {
+            return ProveedorPago.MERCADO_PAGO;
+        }
+
+        try {
+            return ProveedorPago.valueOf(request.proveedor().trim().toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            throw new PagoInvalidoException("Proveedor de pago no soportado: " + request.proveedor());
+        }
+    }
+
+    private boolean esPagoRechazadoMercadoPago(String status) {
         return "rejected".equals(status)
                 || "cancelled".equals(status)
                 || "refunded".equals(status)
@@ -275,7 +416,7 @@ public class PagoServiceImpl implements PagoService {
                 .toUpperCase();
     }
 
-    private String resolverInitPoint(MercadoPagoPreferenceDataDTO preference) {
+    private String resolverInitPointMercadoPago(MercadoPagoPreferenceDataDTO preference) {
         boolean test = "test".equalsIgnoreCase(mercadoPagoProperties.getEnvironment())
                 || "sandbox".equalsIgnoreCase(mercadoPagoProperties.getEnvironment());
 
@@ -286,7 +427,7 @@ public class PagoServiceImpl implements PagoService {
         return preference.initPoint();
     }
 
-    private String extraerEventType(Map<String, Object> body, Map<String, String> params) {
+    private String extraerEventTypeMercadoPago(Map<String, Object> body, Map<String, String> params) {
         if (body != null) {
             Object type = body.get("type");
             if (type != null) return String.valueOf(type);

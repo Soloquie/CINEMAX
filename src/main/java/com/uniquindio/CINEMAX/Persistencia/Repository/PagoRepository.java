@@ -25,4 +25,6 @@ public interface PagoRepository extends JpaRepository<PagoEntity, Long> {
         where p.referencia = :referencia
     """)
     Optional<PagoEntity> findByReferenciaForUpdate(@Param("referencia") String referencia);
+
+    Optional<PagoEntity> findByProviderPreferenceId(String providerPreferenceId);
 }

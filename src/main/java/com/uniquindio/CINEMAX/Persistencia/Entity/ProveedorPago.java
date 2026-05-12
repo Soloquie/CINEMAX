@@ -4,6 +4,6 @@ package com.uniquindio.CINEMAX.Persistencia.Entity;
  * otros proveedores sin cambiar la estructura principal del modelo de pagos.
  */
 public enum ProveedorPago {
-    WOMPI,
+    STRIPE,
     MERCADO_PAGO
 }

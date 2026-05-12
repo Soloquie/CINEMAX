@@ -57,6 +57,8 @@ public class SecurityConfig {
                                 "/api/confiteria/**"
                         ).permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/pagos/webhook/mercado-pago").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/pagos/webhook/stripe").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/webhooks/stripe").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
