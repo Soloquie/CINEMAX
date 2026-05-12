@@ -1,0 +1,885 @@
+{
+  "info": {
+    "_postman_id": "c51c64da-6959-4903-b60d-bcbd1e3def48",
+    "name": "CINEMAX_GestionDeSeleccionDeFuncion",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "49129295",
+    "_collection_link": "https://go.postman.co/collection/49129295-c51c64da-6959-4903-b60d-bcbd1e3def48?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "Obtener funciones de una pelicula",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "let responseJson = [];\r",
+              "try {\r",
+              "    responseJson = pm.response.json();\r",
+              "} catch (e) {\r",
+              "    responseJson = [];\r",
+              "}\r",
+              "\r",
+              "// 1. Validar status code\r",
+              "pm.test(\"Obtener funciones de una película - el status code debe ser 200\", function () {\r",
+              "    pm.response.to.have.status(200);\r",
+              "});\r",
+              "\r",
+              "// 2. Validar que la respuesta sea JSON\r",
+              "pm.test(\"Obtener funciones de una película - la respuesta debe ser JSON\", function () {\r",
+              "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");\r",
+              "});\r",
+              "\r",
+              "// 3. Validar que la respuesta sea un arreglo\r",
+              "pm.test(\"Obtener funciones de una película - la respuesta debe ser un arreglo\", function () {\r",
+              "    pm.expect(responseJson).to.be.an(\"array\");\r",
+              "});\r",
+              "\r",
+              "// 4. Validar que el arreglo no esté vacío\r",
+              "pm.test(\"Obtener funciones de una película - debe retornar al menos una función\", function () {\r",
+              "    pm.expect(responseJson.length).to.be.above(0);\r",
+              "});\r",
+              "\r",
+              "// 5. Validar estructura básica del primer elemento\r",
+              "pm.test(\"Obtener funciones de una película - la primera función debe tener campos clave\", function () {\r",
+              "    const funcion = responseJson[0];\r",
+              "    pm.expect(funcion).to.have.property(\"id\");\r",
+              "    pm.expect(funcion).to.have.property(\"peliculaId\");\r",
+              "    pm.expect(funcion).to.have.property(\"salaId\");\r",
+              "    pm.expect(funcion).to.have.property(\"cineId\");\r",
+              "    pm.expect(funcion).to.have.property(\"inicio\");\r",
+              "    pm.expect(funcion).to.have.property(\"fin\");\r",
+              "    pm.expect(funcion).to.have.property(\"precioBase\");\r",
+              "    pm.expect(funcion).to.have.property(\"estado\");\r",
+              "});\r",
+              "\r",
+              "// 6. Validar que la película corresponda a la solicitada\r",
+              "pm.test(\"Obtener funciones de una película - peliculaId debe coincidir con la solicitada\", function () {\r",
+              "    const peliculaIdEsperada = Number(pm.environment.get(\"pelicula_id_valida\"));\r",
+              "    responseJson.forEach(funcion => {\r",
+              "        pm.expect(funcion.peliculaId).to.eql(peliculaIdEsperada);\r",
+              "    });\r",
+              "});\r",
+              "\r",
+              "// 7. Validar tipos de datos importantes\r",
+              "pm.test(\"Obtener funciones de una película - campos clave deben tener tipos válidos\", function () {\r",
+              "    const funcion = responseJson[0];\r",
+              "    pm.expect(funcion.id).to.be.a(\"number\");\r",
+              "    pm.expect(funcion.peliculaId).to.be.a(\"number\");\r",
+              "    pm.expect(funcion.salaId).to.be.a(\"number\");\r",
+              "    pm.expect(funcion.cineId).to.be.a(\"number\");\r",
+              "    pm.expect(funcion.precioBase).to.be.a(\"number\");\r",
+              "    pm.expect(funcion.estado).to.be.a(\"string\");\r",
+              "});\r",
+              "\r",
+              "// 8. Validar tiempo de respuesta\r",
+              "pm.test(\"Obtener funciones de una película - tiempo de respuesta menor a 5000 ms\", function () {\r",
+              "    pm.expect(pm.response.responseTime).to.be.below(5000);\r",
+              "});\r",
+              "\r",
+              "// 9. Guardar datos para requests siguientes\r",
+              "pm.collectionVariables.set(\"selected_funcion_id\", String(responseJson[0].id));\r",
+              "pm.collectionVariables.set(\"selected_pelicula_id\", String(responseJson[0].peliculaId));\r",
+              "pm.collectionVariables.set(\"selected_cine_id\", String(responseJson[0].cineId));\r",
+              "pm.collectionVariables.set(\"selected_sala_id\", String(responseJson[0].salaId));"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{access_token_user_1}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/funciones/pelicula/{{pelicula_id_valida}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "funciones",
+            "pelicula",
+            "{{pelicula_id_valida}}"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Obtener funciones de película sin resultados",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "let responseJson = [];\r",
+              "try {\r",
+              "    responseJson = pm.response.json();\r",
+              "} catch (e) {\r",
+              "    responseJson = [];\r",
+              "}\r",
+              "\r",
+              "// 1. Validar status code\r",
+              "pm.test(\"Obtener funciones de película sin resultados - el status code debe ser 200\", function () {\r",
+              "    pm.response.to.have.status(200);\r",
+              "});\r",
+              "\r",
+              "// 2. Validar que la respuesta sea JSON\r",
+              "pm.test(\"Obtener funciones de película sin resultados - la respuesta debe ser JSON\", function () {\r",
+              "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");\r",
+              "});\r",
+              "\r",
+              "// 3. Validar que la respuesta sea un arreglo\r",
+              "pm.test(\"Obtener funciones de película sin resultados - la respuesta debe ser un arreglo\", function () {\r",
+              "    pm.expect(responseJson).to.be.an(\"array\");\r",
+              "});\r",
+              "\r",
+              "// 4. Validar que el arreglo venga vacío\r",
+              "pm.test(\"Obtener funciones de película sin resultados - debe retornar un arreglo vacío\", function () {\r",
+              "    pm.expect(responseJson.length).to.eql(0);\r",
+              "});\r",
+              "\r",
+              "// 5. Validar tiempo de respuesta\r",
+              "pm.test(\"Obtener funciones de película sin resultados - tiempo de respuesta menor a 5000 ms\", function () {\r",
+              "    pm.expect(pm.response.responseTime).to.be.below(5000);\r",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{access_token_user_1}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/funciones/pelicula/{{pelicula_id_invalida}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "funciones",
+            "pelicula",
+            "{{pelicula_id_invalida}}"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Obtener asientos",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "let responseJson = [];\r",
+              "try {\r",
+              "    responseJson = pm.response.json();\r",
+              "} catch (e) {\r",
+              "    responseJson = [];\r",
+              "}\r",
+              "\r",
+              "// 1. Validar status code\r",
+              "pm.test(\"Obtener asientos - el status code debe ser 200\", function () {\r",
+              "    pm.response.to.have.status(200);\r",
+              "});\r",
+              "\r",
+              "// 2. Validar que la respuesta sea JSON\r",
+              "pm.test(\"Obtener asientos - la respuesta debe ser JSON\", function () {\r",
+              "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");\r",
+              "});\r",
+              "\r",
+              "// 3. Validar que la respuesta sea un arreglo\r",
+              "pm.test(\"Obtener asientos - la respuesta debe ser un arreglo\", function () {\r",
+              "    pm.expect(responseJson).to.be.an(\"array\");\r",
+              "});\r",
+              "\r",
+              "// 4. Validar que retorne exactamente 50 asientos\r",
+              "pm.test(\"Obtener asientos - debe retornar exactamente 50 asientos\", function () {\r",
+              "    pm.expect(responseJson.length).to.eql(50);\r",
+              "});\r",
+              "\r",
+              "// 5. Validar estructura básica del primer asiento\r",
+              "pm.test(\"Obtener asientos - el primer asiento debe tener campos clave\", function () {\r",
+              "    const asiento = responseJson[0];\r",
+              "    pm.expect(asiento).to.have.property(\"funcionAsientoId\");\r",
+              "    pm.expect(asiento).to.have.property(\"asientoId\");\r",
+              "    pm.expect(asiento).to.have.property(\"fila\");\r",
+              "    pm.expect(asiento).to.have.property(\"numero\");\r",
+              "    pm.expect(asiento).to.have.property(\"tipo\");\r",
+              "    pm.expect(asiento).to.have.property(\"estado\");\r",
+              "    pm.expect(asiento).to.have.property(\"mio\");\r",
+              "    pm.expect(asiento).to.have.property(\"retencionExpira\");\r",
+              "});\r",
+              "\r",
+              "// 6. Validar tipos de datos del primer asiento\r",
+              "pm.test(\"Obtener asientos - los campos del primer asiento deben tener tipos válidos\", function () {\r",
+              "    const asiento = responseJson[0];\r",
+              "    pm.expect(asiento.funcionAsientoId).to.be.a(\"number\");\r",
+              "    pm.expect(asiento.asientoId).to.be.a(\"number\");\r",
+              "    pm.expect(asiento.fila).to.be.a(\"string\");\r",
+              "    pm.expect(asiento.numero).to.be.a(\"number\");\r",
+              "    pm.expect(asiento.tipo).to.be.a(\"string\");\r",
+              "    pm.expect(asiento.estado).to.be.a(\"string\");\r",
+              "    pm.expect(asiento.mio).to.be.a(\"boolean\");\r",
+              "});\r",
+              "\r",
+              "// 7. Validar que todos los asientos tengan estado definido\r",
+              "pm.test(\"Obtener asientos - todos los asientos deben tener estado definido\", function () {\r",
+              "    responseJson.forEach(asiento => {\r",
+              "        pm.expect(asiento.estado).to.exist;\r",
+              "        pm.expect(asiento.estado).to.be.a(\"string\");\r",
+              "        pm.expect(asiento.estado.length).to.be.above(0);\r",
+              "    });\r",
+              "});\r",
+              "\r",
+              "// 8. Validar tiempo de respuesta\r",
+              "pm.test(\"Obtener asientos - tiempo de respuesta menor a 5000 ms\", function () {\r",
+              "    pm.expect(pm.response.responseTime).to.be.below(5000);\r",
+              "});\r",
+              "\r",
+              "// 9. Guardar algunos IDs útiles para pruebas posteriores\r",
+              "pm.collectionVariables.set(\"selected_funcion_asiento_id_1\", String(responseJson[0].funcionAsientoId));\r",
+              "pm.collectionVariables.set(\"selected_funcion_asiento_id_2\", String(responseJson[1].funcionAsientoId));"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{access_token_user_1}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/funciones/{{selected_funcion_id}}/asientos",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "funciones",
+            "{{selected_funcion_id}}",
+            "asientos"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Bloquear asientos",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "let responseJson = {};\r",
+              "try {\r",
+              "    responseJson = pm.response.json();\r",
+              "} catch (e) {\r",
+              "    responseJson = {};\r",
+              "}\r",
+              "\r",
+              "const asiento1 = Number(pm.collectionVariables.get(\"selected_funcion_asiento_id_1\"));\r",
+              "const asiento2 = Number(pm.collectionVariables.get(\"selected_funcion_asiento_id_2\"));\r",
+              "const funcionIdEsperada = Number(pm.collectionVariables.get(\"selected_funcion_id\"));\r",
+              "\r",
+              "// 1. Validar status code\r",
+              "pm.test(\"Bloquear asientos - el status code debe ser 200\", function () {\r",
+              "    pm.response.to.have.status(200);\r",
+              "});\r",
+              "\r",
+              "// 2. Validar que la respuesta sea JSON\r",
+              "pm.test(\"Bloquear asientos - la respuesta debe ser JSON\", function () {\r",
+              "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");\r",
+              "});\r",
+              "\r",
+              "// 3. Validar que venga funcionId\r",
+              "pm.test(\"Bloquear asientos - debe retornar funcionId\", function () {\r",
+              "    pm.expect(responseJson.funcionId).to.exist;\r",
+              "    pm.expect(responseJson.funcionId).to.be.a(\"number\");\r",
+              "});\r",
+              "\r",
+              "// 4. Validar que funcionId coincida con la función consultada\r",
+              "pm.test(\"Bloquear asientos - funcionId debe coincidir con la función seleccionada\", function () {\r",
+              "    pm.expect(responseJson.funcionId).to.eql(funcionIdEsperada);\r",
+              "});\r",
+              "\r",
+              "// 5. Validar que venga el arreglo de bloqueados\r",
+              "pm.test(\"Bloquear asientos - debe retornar la lista de asientos bloqueados\", function () {\r",
+              "    pm.expect(responseJson.bloqueados).to.exist;\r",
+              "    pm.expect(responseJson.bloqueados).to.be.an(\"array\");\r",
+              "});\r",
+              "\r",
+              "// 6. Validar que se hayan bloqueado exactamente 2 asientos\r",
+              "pm.test(\"Bloquear asientos - debe bloquear exactamente 2 asientos\", function () {\r",
+              "    pm.expect(responseJson.bloqueados.length).to.eql(2);\r",
+              "});\r",
+              "\r",
+              "// 7. Validar que los asientos bloqueados sean los solicitados\r",
+              "pm.test(\"Bloquear asientos - los asientos bloqueados deben coincidir con los solicitados\", function () {\r",
+              "    pm.expect(responseJson.bloqueados).to.include(asiento1);\r",
+              "    pm.expect(responseJson.bloqueados).to.include(asiento2);\r",
+              "});\r",
+              "\r",
+              "// 8. Validar expiración de retención\r",
+              "pm.test(\"Bloquear asientos - debe retornar expiraEn\", function () {\r",
+              "    pm.expect(responseJson.expiraEn).to.exist;\r",
+              "    pm.expect(responseJson.expiraEn).to.be.a(\"string\");\r",
+              "    pm.expect(responseJson.expiraEn.length).to.be.above(0);\r",
+              "});\r",
+              "\r",
+              "// 9. Validar tiempo de respuesta\r",
+              "pm.test(\"Bloquear asientos - tiempo de respuesta menor a 5000 ms\", function () {\r",
+              "    pm.expect(pm.response.responseTime).to.be.below(5000);\r",
+              "});\r",
+              "\r",
+              "// 10. Guardar información útil para pruebas posteriores\r",
+              "pm.collectionVariables.set(\"last_hold_funcion_id\", String(responseJson.funcionId));\r",
+              "pm.collectionVariables.set(\"last_hold_asiento_1\", String(asiento1));\r",
+              "pm.collectionVariables.set(\"last_hold_asiento_2\", String(asiento2));\r",
+              "pm.collectionVariables.set(\"last_hold_expira_en\", responseJson.expiraEn);"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{access_token_user_1}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"funcionAsientoIds\": [{{selected_funcion_asiento_id_1}},{{selected_funcion_asiento_id_2}}]\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/api/funciones/{{selected_funcion_id}}/asientos/hold",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "funciones",
+            "{{selected_funcion_id}}",
+            "asientos",
+            "hold"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Bloquear asiento con lista vacia",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "let responseJson = {};\r",
+              "try {\r",
+              "    responseJson = pm.response.json();\r",
+              "} catch (e) {\r",
+              "    responseJson = {};\r",
+              "}\r",
+              "\r",
+              "// 1. Validar status code\r",
+              "pm.test(\"Bloquear asiento con lista vacía - el status code debe ser 400\", function () {\r",
+              "    pm.response.to.have.status(400);\r",
+              "});\r",
+              "\r",
+              "// 2. Validar que la respuesta sea JSON\r",
+              "pm.test(\"Bloquear asiento con lista vacía - la respuesta debe ser JSON\", function () {\r",
+              "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");\r",
+              "});\r",
+              "\r",
+              "// 3. Validar status del body\r",
+              "pm.test(\"Bloquear asiento con lista vacía - status del body debe ser 400\", function () {\r",
+              "    pm.expect(responseJson.status).to.eql(400);\r",
+              "});\r",
+              "\r",
+              "// 4. Validar tipo de error HTTP\r",
+              "pm.test(\"Bloquear asiento con lista vacía - error debe ser Bad Request\", function () {\r",
+              "    pm.expect(responseJson.error).to.eql(\"Bad Request\");\r",
+              "});\r",
+              "\r",
+              "// 5. Validar código interno\r",
+              "pm.test(\"Bloquear asiento con lista vacía - code debe ser VALIDACION_INVALIDA\", function () {\r",
+              "    pm.expect(responseJson.code).to.eql(\"VALIDACION_INVALIDA\");\r",
+              "});\r",
+              "\r",
+              "// 6. Validar mensaje\r",
+              "pm.test(\"Bloquear asiento con lista vacía - debe retornar mensaje de validación esperado\", function () {\r",
+              "    pm.expect(responseJson.message).to.exist;\r",
+              "    pm.expect(responseJson.message).to.be.a(\"string\");\r",
+              "    pm.expect(responseJson.message).to.include(\"must not be empty\");\r",
+              "});\r",
+              "\r",
+              "// 7. Validar path\r",
+              "pm.test(\"Bloquear asiento con lista vacía - path debe corresponder al endpoint de hold\", function () {\r",
+              "    pm.expect(responseJson.path).to.exist;\r",
+              "    pm.expect(responseJson.path).to.include(\"/api/funciones/\");\r",
+              "    pm.expect(responseJson.path).to.include(\"/asientos/hold\");\r",
+              "});\r",
+              "\r",
+              "// 8. Validar tiempo de respuesta\r",
+              "pm.test(\"Bloquear asiento con lista vacía - tiempo de respuesta menor a 5000 ms\", function () {\r",
+              "    pm.expect(pm.response.responseTime).to.be.below(5000);\r",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{access_token_user_1}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer eyJhbGciOiJIUzI1NiJ9.eyJ1aWQiOjMsInJvbGVzIjpbIkNMSUVOVEUiXSwic3ViIjoiamVmZmVyc29uLnJvZHJpZ3VlenZAdXF2aXJ0dWFsLmVkdS5jbyIsImlhdCI6MTc3MzExMTQ1MSwiZXhwIjoxNzczMTE1MDUxfQ.5HsTsrkf1qSD4j7-4F00xCnQ9AAulQkZmWIdbav77uw",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"funcionAsientoIds\": []\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/api/funciones/{{selected_funcion_id}}/asientos/hold",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "funciones",
+            "{{selected_funcion_id}}",
+            "asientos",
+            "hold"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Liberar asientos",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "let responseJson = {};\r",
+              "try {\r",
+              "    responseJson = pm.response.json();\r",
+              "} catch (e) {\r",
+              "    responseJson = {};\r",
+              "}\r",
+              "\r",
+              "// 1. Validar status code\r",
+              "pm.test(\"Liberar asientos - el status code debe ser 200\", function () {\r",
+              "    pm.response.to.have.status(200);\r",
+              "});\r",
+              "\r",
+              "// 2. Validar que la respuesta sea JSON\r",
+              "pm.test(\"Liberar asientos - la respuesta debe ser JSON\", function () {\r",
+              "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");\r",
+              "});\r",
+              "\r",
+              "// 3. Validar que exista mensaje\r",
+              "pm.test(\"Liberar asientos - debe retornar un mensaje\", function () {\r",
+              "    pm.expect(responseJson.message).to.exist;\r",
+              "    pm.expect(responseJson.message).to.be.a(\"string\");\r",
+              "});\r",
+              "\r",
+              "// 4. Validar contenido del mensaje\r",
+              "pm.test(\"Liberar asientos - debe indicar que se liberaron 2 asientos\", function () {\r",
+              "    pm.expect(responseJson.message).to.include(\"Asientos liberados\");\r",
+              "    pm.expect(responseJson.message).to.include(\"2\");\r",
+              "});\r",
+              "\r",
+              "// 5. Validar tiempo de respuesta\r",
+              "pm.test(\"Liberar asientos - tiempo de respuesta menor a 5000 ms\", function () {\r",
+              "    pm.expect(pm.response.responseTime).to.be.below(5000);\r",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{access_token_user_1}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"funcionAsientoIds\": [{{last_hold_asiento_1}}, {{last_hold_asiento_2}}]\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/api/funciones/{{selected_funcion_id}}/asientos/release",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "funciones",
+            "{{selected_funcion_id}}",
+            "asientos",
+            "release"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Liberar asiento no bloqueado",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "let responseJson = {};\r",
+              "try {\r",
+              "    responseJson = pm.response.json();\r",
+              "} catch (e) {\r",
+              "    responseJson = {};\r",
+              "}\r",
+              "\r",
+              "// 1. Validar status code\r",
+              "pm.test(\"Liberar asiento no bloqueado - el status code debe ser 200\", function () {\r",
+              "    pm.response.to.have.status(200);\r",
+              "});\r",
+              "\r",
+              "// 2. Validar que la respuesta sea JSON\r",
+              "pm.test(\"Liberar asiento no bloqueado - la respuesta debe ser JSON\", function () {\r",
+              "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");\r",
+              "});\r",
+              "\r",
+              "// 3. Validar que exista mensaje\r",
+              "pm.test(\"Liberar asiento no bloqueado - debe retornar un mensaje\", function () {\r",
+              "    pm.expect(responseJson.message).to.exist;\r",
+              "    pm.expect(responseJson.message).to.be.a(\"string\");\r",
+              "});\r",
+              "\r",
+              "// 4. Validar que el mensaje indique 0 asientos liberados\r",
+              "pm.test(\"Liberar asiento no bloqueado - debe indicar que se liberaron 0 asientos\", function () {\r",
+              "    pm.expect(responseJson.message).to.include(\"Asientos liberados\");\r",
+              "    pm.expect(responseJson.message).to.include(\"0\");\r",
+              "});\r",
+              "\r",
+              "// 5. Validar tiempo de respuesta\r",
+              "pm.test(\"Liberar asiento no bloqueado - tiempo de respuesta menor a 5000 ms\", function () {\r",
+              "    pm.expect(pm.response.responseTime).to.be.below(5000);\r",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{access_token_user_1}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"funcionAsientoIds\": [{{last_hold_asiento_1}}]\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/api/funciones/{{selected_funcion_id}}/asientos/release",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "funciones",
+            "{{selected_funcion_id}}",
+            "asientos",
+            "release"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Consultar carrito",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "let responseJson = {};\r",
+              "try {\r",
+              "    responseJson = pm.response.json();\r",
+              "} catch (e) {\r",
+              "    responseJson = {};\r",
+              "}\r",
+              "\r",
+              "// 1. Validar status code\r",
+              "pm.test(\"Consultar carrito - el status code debe ser 200\", function () {\r",
+              "    pm.response.to.have.status(200);\r",
+              "});\r",
+              "\r",
+              "// 2. Validar que la respuesta sea JSON\r",
+              "pm.test(\"Consultar carrito - la respuesta debe ser JSON\", function () {\r",
+              "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");\r",
+              "});\r",
+              "\r",
+              "// 3. Validar estructura principal del carrito\r",
+              "pm.test(\"Consultar carrito - debe retornar la estructura principal del carrito\", function () {\r",
+              "    pm.expect(responseJson).to.have.property(\"carritoId\");\r",
+              "    pm.expect(responseJson).to.have.property(\"estado\");\r",
+              "    pm.expect(responseJson).to.have.property(\"expiraEn\");\r",
+              "    pm.expect(responseJson).to.have.property(\"items\");\r",
+              "});\r",
+              "\r",
+              "// 4. Validar tipos de datos principales\r",
+              "pm.test(\"Consultar carrito - los campos principales deben tener tipos válidos\", function () {\r",
+              "    pm.expect(responseJson.carritoId).to.be.a(\"number\");\r",
+              "    pm.expect(responseJson.estado).to.be.a(\"string\");\r",
+              "    pm.expect(responseJson.items).to.be.an(\"array\");\r",
+              "});\r",
+              "\r",
+              "// 5. Validar que el estado del carrito no venga vacío\r",
+              "pm.test(\"Consultar carrito - el estado del carrito no debe venir vacío\", function () {\r",
+              "    pm.expect(responseJson.estado.length).to.be.above(0);\r",
+              "});\r",
+              "\r",
+              "// 6. Validar estructura del primer item solo si hay items\r",
+              "pm.test(\"Consultar carrito - si hay items, el primero debe tener campos clave\", function () {\r",
+              "    if (responseJson.items.length > 0) {\r",
+              "        const item = responseJson.items[0];\r",
+              "        pm.expect(item).to.have.property(\"itemId\");\r",
+              "        pm.expect(item).to.have.property(\"tipo\");\r",
+              "        pm.expect(item).to.have.property(\"cantidad\");\r",
+              "        pm.expect(item).to.have.property(\"precioUnitario\");\r",
+              "        pm.expect(item).to.have.property(\"subtotal\");\r",
+              "    } else {\r",
+              "        pm.expect(responseJson.items.length).to.eql(0);\r",
+              "    }\r",
+              "});\r",
+              "\r",
+              "// 7. Validar tipos del primer item solo si hay items\r",
+              "pm.test(\"Consultar carrito - si hay items, sus campos principales deben tener tipos válidos\", function () {\r",
+              "    if (responseJson.items.length > 0) {\r",
+              "        const item = responseJson.items[0];\r",
+              "        pm.expect(item.itemId).to.be.a(\"number\");\r",
+              "        pm.expect(item.tipo).to.be.a(\"string\");\r",
+              "        pm.expect(item.cantidad).to.be.a(\"number\");\r",
+              "        pm.expect(item.precioUnitario).to.be.a(\"number\");\r",
+              "        pm.expect(item.subtotal).to.be.a(\"number\");\r",
+              "    } else {\r",
+              "        pm.expect(true).to.eql(true);\r",
+              "    }\r",
+              "});\r",
+              "\r",
+              "// 8. Validar que cada item tenga cantidad válida\r",
+              "pm.test(\"Consultar carrito - si hay items, cada uno debe tener cantidad mayor a 0\", function () {\r",
+              "    responseJson.items.forEach(item => {\r",
+              "        pm.expect(item.cantidad).to.be.above(0);\r",
+              "    });\r",
+              "});\r",
+              "\r",
+              "// 9. Validar tiempo de respuesta\r",
+              "pm.test(\"Consultar carrito - tiempo de respuesta menor a 5000 ms\", function () {\r",
+              "    pm.expect(pm.response.responseTime).to.be.below(5000);\r",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{access_token_user_1}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/carrito",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "carrito"
+          ]
+        }
+      },
+      "response": []
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          ""
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          ""
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "selected_funcion_id",
+      "value": ""
+    },
+    {
+      "key": "selected_funcion_asiento_id_1",
+      "value": ""
+    },
+    {
+      "key": "selected_funcion_asiento_id_2",
+      "value": "",
+      "type": "default"
+    },
+    {
+      "key": "selected_pelicula_id",
+      "value": ""
+    },
+    {
+      "key": "selected_cine_id",
+      "value": ""
+    },
+    {
+      "key": "selected_sala_id",
+      "value": ""
+    },
+    {
+      "key": "last_hold_funcion_id",
+      "value": ""
+    },
+    {
+      "key": "last_hold_asiento_1",
+      "value": ""
+    },
+    {
+      "key": "last_hold_asiento_2",
+      "value": ""
+    },
+    {
+      "key": "last_hold_expira_en",
+      "value": ""
+    }
+  ]
+}

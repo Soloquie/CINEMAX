@@ -1,0 +1,47 @@
+name: CINEMAX - Pruebas API Selección de Función
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+  pull_request:
+    branches: [ "main", "develop" ]
+  workflow_dispatch:
+
+jobs:
+  postman-seleccion-funcion:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v5
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+
+      - name: Instalar Newman
+        run: npm install -g newman
+
+      - name: Crear carpeta de reportes
+        run: mkdir -p reports
+
+      - name: Ejecutar colección Postman de autenticación para obtener token actualizado
+        run: |
+          newman run "postman/CINEMAX_Autentificacion.postman_collection.json" \
+            -e "postman/VAR_CINEMAX.postman_environment.json" \
+            -r cli \
+            --export-environment "postman/VAR_CINEMAX_runtime.postman_environment.json"
+
+      - name: Ejecutar colección Postman de selección de función
+        run: |
+          newman run "postman/CINEMAX_GestionDeSeleccionDeFuncion.postman_collection.json" \
+            -e "postman/VAR_CINEMAX_runtime.postman_environment.json" \
+            -r cli,junit \
+            --reporter-junit-export "reports/resultados-seleccion-funcion.xml"
+
+      - name: Subir reporte XML como artefacto
+        uses: actions/upload-artifact@v4
+        with:
+          name: resultados-seleccion-funcion
+          path: reports/resultados-seleccion-funcion.xml
