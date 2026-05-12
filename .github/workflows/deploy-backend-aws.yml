@@ -29,13 +29,12 @@ jobs:
           java-version: '21'
           cache: maven
 
-      - name: Give permission to Maven Wrapper
-        run: chmod +x mvnw
+      - name: Verify Maven
+        run: mvn -v
 
       - name: Build backend
         run: |
-          chmod +x mvnw
-          ./mvnw clean package -DskipTests
+          mvn -B -ntp clean package -DskipTests
           echo "Contenido después del build:"
           find . -type f -path "*/target/*.jar"
 
