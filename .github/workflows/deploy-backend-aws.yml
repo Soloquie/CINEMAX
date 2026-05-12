@@ -71,7 +71,7 @@ jobs:
 
       - name: Upload bundle to S3
         run: |
-          VERSION_LABEL="cinemax-${GITHUB_SHA:0:7}-${GITHUB_RUN_NUMBER}"
+          VERSION_LABEL="cinemax-${GITHUB_SHA:0:7}-${GITHUB_RUN_NUMBER}-${GITHUB_RUN_ATTEMPT}"
           S3_KEY="backend/${VERSION_LABEL}.zip"
 
           echo "VERSION_LABEL=${VERSION_LABEL}" >> $GITHUB_ENV
