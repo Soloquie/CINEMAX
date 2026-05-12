@@ -1,0 +1,439 @@
+{
+  "info": {
+    "_postman_id": "0a02b48c-42be-4e5c-9fc3-7daca2e0b9fa",
+    "name": "CINEMAX_GestionDeConfiteria",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "49129295",
+    "_collection_link": "https://go.postman.co/collection/49129295-0a02b48c-42be-4e5c-9fc3-7daca2e0b9fa?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "Mostrar productos",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "let responseJson = [];\r",
+              "try {\r",
+              "    responseJson = pm.response.json();\r",
+              "} catch (e) {\r",
+              "    responseJson = [];\r",
+              "}\r",
+              "\r",
+              "// 1. Validar status code\r",
+              "pm.test(\"Mostrar productos - el status code debe ser 200\", function () {\r",
+              "    pm.response.to.have.status(200);\r",
+              "});\r",
+              "\r",
+              "// 2. Validar que la respuesta sea JSON\r",
+              "pm.test(\"Mostrar productos - la respuesta debe ser JSON\", function () {\r",
+              "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");\r",
+              "});\r",
+              "\r",
+              "// 3. Validar que la respuesta sea un arreglo\r",
+              "pm.test(\"Mostrar productos - la respuesta debe ser un arreglo\", function () {\r",
+              "    pm.expect(responseJson).to.be.an(\"array\");\r",
+              "});\r",
+              "\r",
+              "// 4. Validar que el arreglo no esté vacío\r",
+              "pm.test(\"Mostrar productos - debe retornar al menos un producto\", function () {\r",
+              "    pm.expect(responseJson.length).to.be.above(0);\r",
+              "});\r",
+              "\r",
+              "// 5. Validar estructura del primer producto\r",
+              "pm.test(\"Mostrar productos - el primer producto debe tener campos clave\", function () {\r",
+              "    const producto = responseJson[0];\r",
+              "    pm.expect(producto).to.have.property(\"id\");\r",
+              "    pm.expect(producto).to.have.property(\"sku\");\r",
+              "    pm.expect(producto).to.have.property(\"nombre\");\r",
+              "    pm.expect(producto).to.have.property(\"descripcion\");\r",
+              "    pm.expect(producto).to.have.property(\"precio\");\r",
+              "    pm.expect(producto).to.have.property(\"categoria\");\r",
+              "    pm.expect(producto).to.have.property(\"imagenUrl\");\r",
+              "    pm.expect(producto).to.have.property(\"activo\");\r",
+              "    pm.expect(producto).to.have.property(\"stock\");\r",
+              "});\r",
+              "\r",
+              "// 6. Validar tipos de datos del primer producto\r",
+              "pm.test(\"Mostrar productos - los campos del primer producto deben tener tipos válidos\", function () {\r",
+              "    const producto = responseJson[0];\r",
+              "    pm.expect(producto.id).to.be.a(\"number\");\r",
+              "    pm.expect(producto.sku).to.be.a(\"string\");\r",
+              "    pm.expect(producto.nombre).to.be.a(\"string\");\r",
+              "    pm.expect(producto.descripcion).to.be.a(\"string\");\r",
+              "    pm.expect(producto.precio).to.be.a(\"number\");\r",
+              "    pm.expect(producto.categoria).to.be.a(\"string\");\r",
+              "    pm.expect(producto.imagenUrl).to.be.a(\"string\");\r",
+              "    pm.expect(producto.activo).to.be.a(\"boolean\");\r",
+              "    pm.expect(producto.stock).to.be.a(\"number\");\r",
+              "});\r",
+              "\r",
+              "// 7. Validar que todos los productos tengan nombre y categoría\r",
+              "pm.test(\"Mostrar productos - todos los productos deben tener nombre y categoría\", function () {\r",
+              "    responseJson.forEach(producto => {\r",
+              "        pm.expect(producto.nombre).to.exist;\r",
+              "        pm.expect(producto.nombre).to.be.a(\"string\");\r",
+              "        pm.expect(producto.nombre.length).to.be.above(0);\r",
+              "\r",
+              "        pm.expect(producto.categoria).to.exist;\r",
+              "        pm.expect(producto.categoria).to.be.a(\"string\");\r",
+              "        pm.expect(producto.categoria.length).to.be.above(0);\r",
+              "    });\r",
+              "});\r",
+              "\r",
+              "// 8. Validar tiempo de respuesta\r",
+              "pm.test(\"Mostrar productos - tiempo de respuesta menor a 5000 ms\", function () {\r",
+              "    pm.expect(pm.response.responseTime).to.be.below(5000);\r",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{access_token_user_1}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/confiteria/productos",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "confiteria",
+            "productos"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Filtro valido",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "let responseJson = [];\r",
+              "try {\r",
+              "    responseJson = pm.response.json();\r",
+              "} catch (e) {\r",
+              "    responseJson = [];\r",
+              "}\r",
+              "\r",
+              "// 1. Validar status code\r",
+              "pm.test(\"Filtro válido - el status code debe ser 200\", function () {\r",
+              "    pm.response.to.have.status(200);\r",
+              "});\r",
+              "\r",
+              "// 2. Validar que la respuesta sea JSON\r",
+              "pm.test(\"Filtro válido - la respuesta debe ser JSON\", function () {\r",
+              "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");\r",
+              "});\r",
+              "\r",
+              "// 3. Validar que la respuesta sea un arreglo\r",
+              "pm.test(\"Filtro válido - la respuesta debe ser un arreglo\", function () {\r",
+              "    pm.expect(responseJson).to.be.an(\"array\");\r",
+              "});\r",
+              "\r",
+              "// 4. Validar que el arreglo no esté vacío\r",
+              "pm.test(\"Filtro válido - debe retornar al menos un producto\", function () {\r",
+              "    pm.expect(responseJson.length).to.be.above(0);\r",
+              "});\r",
+              "\r",
+              "// 5. Validar estructura del primer producto\r",
+              "pm.test(\"Filtro válido - el primer producto debe tener campos clave\", function () {\r",
+              "    const producto = responseJson[0];\r",
+              "    pm.expect(producto).to.have.property(\"id\");\r",
+              "    pm.expect(producto).to.have.property(\"sku\");\r",
+              "    pm.expect(producto).to.have.property(\"nombre\");\r",
+              "    pm.expect(producto).to.have.property(\"descripcion\");\r",
+              "    pm.expect(producto).to.have.property(\"precio\");\r",
+              "    pm.expect(producto).to.have.property(\"categoria\");\r",
+              "    pm.expect(producto).to.have.property(\"activo\");\r",
+              "    pm.expect(producto).to.have.property(\"stock\");\r",
+              "});\r",
+              "\r",
+              "// 6. Validar que todos los productos sean de la categoría DRINK\r",
+              "pm.test(\"Filtro válido - todos los productos deben pertenecer a la categoría DRINK\", function () {\r",
+              "    responseJson.forEach(producto => {\r",
+              "        pm.expect(producto.categoria).to.eql(\"DRINK\");\r",
+              "    });\r",
+              "});\r",
+              "\r",
+              "// 7. Validar tipos de datos del primer producto\r",
+              "pm.test(\"Filtro válido - los campos del primer producto deben tener tipos válidos\", function () {\r",
+              "    const producto = responseJson[0];\r",
+              "    pm.expect(producto.id).to.be.a(\"number\");\r",
+              "    pm.expect(producto.sku).to.be.a(\"string\");\r",
+              "    pm.expect(producto.nombre).to.be.a(\"string\");\r",
+              "    pm.expect(producto.descripcion).to.be.a(\"string\");\r",
+              "    pm.expect(producto.precio).to.be.a(\"number\");\r",
+              "    pm.expect(producto.categoria).to.be.a(\"string\");\r",
+              "    pm.expect(producto.activo).to.be.a(\"boolean\");\r",
+              "    pm.expect(producto.stock).to.be.a(\"number\");\r",
+              "});\r",
+              "\r",
+              "// 8. Validar tiempo de respuesta\r",
+              "pm.test(\"Filtro válido - tiempo de respuesta menor a 5000 ms\", function () {\r",
+              "    pm.expect(pm.response.responseTime).to.be.below(5000);\r",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{access_token_user_1}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "",
+            "type": "text",
+            "disabled": true
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/confiteria/productos?categoria=drink",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "confiteria",
+            "productos"
+          ],
+          "query": [
+            {
+              "key": "categoria",
+              "value": "drink"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Filtro invalido",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "let responseJson = {};\r",
+              "try {\r",
+              "    responseJson = pm.response.json();\r",
+              "} catch (e) {\r",
+              "    responseJson = {};\r",
+              "}\r",
+              "\r",
+              "// 1. Validar status code\r",
+              "pm.test(\"Filtro inválido - el status code debe ser 400\", function () {\r",
+              "    pm.response.to.have.status(400);\r",
+              "});\r",
+              "\r",
+              "// 2. Validar que la respuesta sea JSON\r",
+              "pm.test(\"Filtro inválido - la respuesta debe ser JSON\", function () {\r",
+              "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");\r",
+              "});\r",
+              "\r",
+              "// 3. Validar status del body\r",
+              "pm.test(\"Filtro inválido - status del body debe ser 400\", function () {\r",
+              "    pm.expect(responseJson.status).to.eql(400);\r",
+              "});\r",
+              "\r",
+              "// 4. Validar tipo de error HTTP\r",
+              "pm.test(\"Filtro inválido - error debe ser Bad Request\", function () {\r",
+              "    pm.expect(responseJson.error).to.eql(\"Bad Request\");\r",
+              "});\r",
+              "\r",
+              "// 5. Validar código interno\r",
+              "pm.test(\"Filtro inválido - code debe ser FILTRO_INVALIDO\", function () {\r",
+              "    pm.expect(responseJson.code).to.eql(\"FILTRO_INVALIDO\");\r",
+              "});\r",
+              "\r",
+              "// 6. Validar mensaje\r",
+              "pm.test(\"Filtro inválido - debe retornar el mensaje esperado\", function () {\r",
+              "    pm.expect(responseJson.message).to.eql(\"La categoría proporcionada no es válida.\");\r",
+              "});\r",
+              "\r",
+              "// 7. Validar path\r",
+              "pm.test(\"Filtro inválido - path debe ser /api/confiteria/productos\", function () {\r",
+              "    pm.expect(responseJson.path).to.eql(\"/api/confiteria/productos\");\r",
+              "});\r",
+              "\r",
+              "// 8. Validar tiempo de respuesta\r",
+              "pm.test(\"Filtro inválido - tiempo de respuesta menor a 5000 ms\", function () {\r",
+              "    pm.expect(pm.response.responseTime).to.be.below(5000);\r",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{access_token_user_1}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/confiteria/productos?categoria=televisores",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "confiteria",
+            "productos"
+          ],
+          "query": [
+            {
+              "key": "categoria",
+              "value": "televisores"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Parametro de filtro vacio",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "let responseJson = [];\r",
+              "try {\r",
+              "    responseJson = pm.response.json();\r",
+              "} catch (e) {\r",
+              "    responseJson = [];\r",
+              "}\r",
+              "\r",
+              "// 1. Validar status code\r",
+              "pm.test(\"Parámetro de filtro vacío - el status code debe ser 200\", function () {\r",
+              "    pm.response.to.have.status(200);\r",
+              "});\r",
+              "\r",
+              "// 2. Validar que la respuesta sea JSON\r",
+              "pm.test(\"Parámetro de filtro vacío - la respuesta debe ser JSON\", function () {\r",
+              "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");\r",
+              "});\r",
+              "\r",
+              "// 3. Validar que la respuesta sea un arreglo\r",
+              "pm.test(\"Parámetro de filtro vacío - la respuesta debe ser un arreglo\", function () {\r",
+              "    pm.expect(responseJson).to.be.an(\"array\");\r",
+              "});\r",
+              "\r",
+              "// 4. Validar que el arreglo no esté vacío\r",
+              "pm.test(\"Parámetro de filtro vacío - debe retornar productos\", function () {\r",
+              "    pm.expect(responseJson.length).to.be.above(0);\r",
+              "});\r",
+              "\r",
+              "// 5. Validar estructura del primer producto\r",
+              "pm.test(\"Parámetro de filtro vacío - el primer producto debe tener campos clave\", function () {\r",
+              "    const producto = responseJson[0];\r",
+              "    pm.expect(producto).to.have.property(\"id\");\r",
+              "    pm.expect(producto).to.have.property(\"sku\");\r",
+              "    pm.expect(producto).to.have.property(\"nombre\");\r",
+              "    pm.expect(producto).to.have.property(\"descripcion\");\r",
+              "    pm.expect(producto).to.have.property(\"precio\");\r",
+              "    pm.expect(producto).to.have.property(\"categoria\");\r",
+              "    pm.expect(producto).to.have.property(\"activo\");\r",
+              "    pm.expect(producto).to.have.property(\"stock\");\r",
+              "});\r",
+              "\r",
+              "// 6. Validar tipos de datos del primer producto\r",
+              "pm.test(\"Parámetro de filtro vacío - los campos del primer producto deben tener tipos válidos\", function () {\r",
+              "    const producto = responseJson[0];\r",
+              "    pm.expect(producto.id).to.be.a(\"number\");\r",
+              "    pm.expect(producto.sku).to.be.a(\"string\");\r",
+              "    pm.expect(producto.nombre).to.be.a(\"string\");\r",
+              "    pm.expect(producto.descripcion).to.be.a(\"string\");\r",
+              "    pm.expect(producto.precio).to.be.a(\"number\");\r",
+              "    pm.expect(producto.categoria).to.be.a(\"string\");\r",
+              "    pm.expect(producto.activo).to.be.a(\"boolean\");\r",
+              "    pm.expect(producto.stock).to.be.a(\"number\");\r",
+              "});\r",
+              "\r",
+              "// 7. Validar tiempo de respuesta\r",
+              "pm.test(\"Parámetro de filtro vacío - tiempo de respuesta menor a 5000 ms\", function () {\r",
+              "    pm.expect(pm.response.responseTime).to.be.below(5000);\r",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{access_token_user_1}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/confiteria/productos?categoria=",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "confiteria",
+            "productos"
+          ],
+          "query": [
+            {
+              "key": "categoria",
+              "value": ""
+            }
+          ]
+        }
+      },
+      "response": []
+    }
+  ]
+}
