@@ -26,4 +26,16 @@ public interface VentaRepository extends JpaRepository<VentaEntity, Long> {
     order by v.id desc
 """)
     List<VentaEntity> findMisComprasByUsuarioEmail(@Param("email") String email);
+
+    @Query("""
+        select v
+        from VentaEntity v
+        left join fetch v.pago p
+        where v.id = :ventaId
+        and lower(v.usuario.email) = lower(:email)
+    """)
+    Optional<VentaEntity> findByIdAndUsuarioEmail(
+            @Param("ventaId") Long ventaId,
+            @Param("email") String email
+    );
 }

@@ -1,6 +1,7 @@
 package com.uniquindio.CINEMAX.negocio.Service;
 
 import com.uniquindio.CINEMAX.negocio.DTO.CompraResumenDTO;
+import com.uniquindio.CINEMAX.negocio.DTO.MisCompraResponseDTO;
 import com.uniquindio.CINEMAX.negocio.DTO.VentaResponseDTO;
 
 import java.util.List;
@@ -14,6 +15,6 @@ public interface VentaService {
 
     VentaResponseDTO detalleVenta(Long ventaId, String userEmail);
 
-    List<CompraResumenDTO> listarMisCompras(String userEmail);
+    List<CompraResumenDTO> listarMisCompras(String emailUsuario);
 
 }
